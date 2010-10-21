@@ -470,6 +470,47 @@
             </plugins>
          </build>
       </profile>
+      
+      <!--  Sreekanth's profile for glassfish to run with test list starts -->
+       <profile>
+         <id>glassfish-remote</id>
+         <activation>
+            <activeByDefault>false</activeByDefault>
+            <property>
+               <name>glassfish-remote</name>
+            </property>
+         </activation>
+         <properties>
+            <test>org.jboss.weld.tests.GlassfishIntegrationSuite</test>
+            <glassfish.version>3.1-b24</glassfish.version>
+         </properties>
+         <dependencies>
+            <dependency>
+               <groupId>org.jboss.arquillian.container</groupId>
+               <artifactId>arquillian-glassfish-remote-3</artifactId>
+               <scope>test</scope>
+            </dependency>
+            <dependency>
+               <groupId>org.glassfish.deployment</groupId>
+               <artifactId>deployment-client</artifactId>
+               <version>${glassfish.version}</version>
+               <scope>test</scope>
+            </dependency>
+         </dependencies>
+         <build>
+            <plugins>
+               <plugin>
+                  <groupId>org.apache.maven.plugins</groupId>
+                  <artifactId>maven-surefire-plugin</artifactId>
+                  <configuration>
+                     <test>${test}</test>
+                     <parallel>none</parallel>
+                  </configuration>
+               </plugin>
+            </plugins>
+         </build>
+      </profile>
+      <!--  Sreekanths glassfish profile ended -->
 	
    </profiles>
 
