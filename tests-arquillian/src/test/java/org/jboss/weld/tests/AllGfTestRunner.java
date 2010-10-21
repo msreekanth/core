@@ -36,11 +36,11 @@ public class AllGfTestRunner extends Suite {
 		//Reading the test list properties Begin
 		Properties runTestList = new Properties();		
 		final ArrayList<String> alRunTestList=new ArrayList<String>();
-		final Logger logger = Logger.getLogger("MyLog");		 
+		final Logger logger = Logger.getLogger("TestCaseInclusionLog.log");		 
 		FileHandler fh;
 		try {
 		      // This block configure the logger with handler and formatter
-		      fh = new FileHandler("/home/sreekanth/MyLogFile.log", false);
+		      fh = new FileHandler("MyLogFile.log", false);
 		      logger.addHandler(fh);
 		      logger.setLevel(Level.ALL);
 		      SimpleFormatter formatter = new SimpleFormatter();
