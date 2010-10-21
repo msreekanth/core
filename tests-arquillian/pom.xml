@@ -473,11 +473,11 @@
       
       <!--  Sreekanth's profile for glassfish to run with test list starts -->
        <profile>
-         <id>glassfish-remote</id>
+         <id>glassfish-remote-sree</id>
          <activation>
             <activeByDefault>false</activeByDefault>
             <property>
-               <name>glassfish-remote</name>
+               <name>glassfish-remote-sree</name>
             </property>
          </activation>
          <properties>
@@ -504,7 +504,7 @@
                   <artifactId>maven-surefire-plugin</artifactId>
                   <configuration>
                      <test>${test}</test>
-                     <parallel>none</parallel>
+                     <parallel>none</parallel>                     
                   </configuration>
                </plugin>
             </plugins>
