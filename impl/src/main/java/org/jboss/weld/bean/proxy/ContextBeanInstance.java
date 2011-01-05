@@ -17,6 +17,8 @@
 
 package org.jboss.weld.bean.proxy;
 
+import static org.jboss.weld.util.reflection.Reflections.cast;
+
 import java.io.Serializable;
 
 import javax.enterprise.context.spi.Context;
@@ -26,7 +28,7 @@ import org.jboss.weld.Container;
 import org.jboss.weld.context.CreationalContextImpl;
 import org.jboss.weld.context.WeldCreationalContext;
 import org.jboss.weld.injection.CurrentInjectionPoint;
-import org.jboss.weld.injection.SimpleInjectionPoint;
+import org.jboss.weld.injection.EmptyInjectionPoint;
 import org.jboss.weld.serialization.spi.ContextualStore;
 
 /**
@@ -50,6 +52,7 @@ public class ContextBeanInstance<T> extends AbstractBeanInstance implements Seri
 
    private static final ThreadLocal<WeldCreationalContext<?>> currentCreationalContext = new ThreadLocal<WeldCreationalContext<?>>();
 
+   
    /**
     * Creates a new locator for instances of the given bean.
     * 
@@ -66,11 +69,18 @@ public class ContextBeanInstance<T> extends AbstractBeanInstance implements Seri
 
    public T getInstance()
    {
+      Container container = Container.instance();
       if (bean == null)
       {
-         bean = Container.instance().services().get(ContextualStore.class).<Bean<T>, T>getContextual(id);
+         bean = container.services().get(ContextualStore.class).<Bean<T>, T>getContextual(id);
       }
-      Context context = Container.instance().deploymentManager().getContext(bean.getScope());
+      Context context = container.deploymentManager().getContext(bean.getScope());
+      
+      if(context.get(bean) != null)
+      {
+         return context.get(bean);
+      }
+      
       WeldCreationalContext<T> creationalContext;
       WeldCreationalContext<?> previousCreationalContext = currentCreationalContext.get();
       if (currentCreationalContext.get() == null)
@@ -85,12 +95,12 @@ public class ContextBeanInstance<T> extends AbstractBeanInstance implements Seri
       try
       {
          // Ensure that there is no injection point associated
-         Container.instance().services().get(CurrentInjectionPoint.class).push(SimpleInjectionPoint.EMPTY_INJECTION_POINT);
+         container.services().get(CurrentInjectionPoint.class).push(EmptyInjectionPoint.INSTANCE);
          return context.get(bean, creationalContext);
       }
       finally
       {
-         Container.instance().services().get(CurrentInjectionPoint.class).pop();
+         container.services().get(CurrentInjectionPoint.class).pop();
          if (previousCreationalContext == null)
          {
             currentCreationalContext.remove();
@@ -102,10 +112,9 @@ public class ContextBeanInstance<T> extends AbstractBeanInstance implements Seri
       }
    }
 
-   @SuppressWarnings("unchecked")
    public Class<T> getInstanceType()
    {
-      return (Class<T>) instanceType;
+      return cast(instanceType);
    }
 
 }

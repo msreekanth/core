@@ -24,7 +24,6 @@ import javax.interceptor.InvocationContext;
 /**
  * @author Marius Bogoevici
  */
-@Interceptor @Transactional 
 public class TransactionalInterceptor
 {
    static int invocationCount = 0;
@@ -33,8 +32,6 @@ public class TransactionalInterceptor
    public Object doInTransaction(InvocationContext invocationContext) throws Exception
    {
       invocationCount++;
-      System.out.println("Transaction " + invocationCount);
-
       return invocationContext.proceed();
    }
 }

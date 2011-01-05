@@ -16,13 +16,14 @@
  */
 package org.jboss.weld.bootstrap;
 
+import static org.jboss.weld.util.reflection.Reflections.cast;
+
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import javax.enterprise.context.spi.Context;
-import javax.enterprise.event.Observes;
 import javax.enterprise.inject.spi.Extension;
 
 import org.jboss.weld.Container;
@@ -37,7 +38,9 @@ import org.jboss.weld.introspector.WeldClass;
 import org.jboss.weld.introspector.WeldMethod;
 import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.resources.ClassTransformer;
+import org.jboss.weld.util.Beans;
 import org.jboss.weld.util.DeploymentStructures;
+import org.jboss.weld.util.reflection.Reflections;
 
 /**
  * @author pmuir
@@ -66,8 +69,7 @@ public class ExtensionBeanDeployer
       ClassTransformer classTransformer = Container.instance().services().get(ClassTransformer.class);
       for (Metadata<Extension> extension : extensions)
       {
-         @SuppressWarnings("unchecked")
-         WeldClass<Extension> clazz = (WeldClass<Extension>) classTransformer.loadClass(extension.getValue().getClass());
+         WeldClass<Extension> clazz = cast(classTransformer.loadClass(extension.getValue().getClass()));
          
          // Locate the BeanDeployment for this extension
          BeanDeployment beanDeployment = DeploymentStructures.getOrCreateBeanDeployment(deployment, beanManager, beanDeployments, contexts, clazz.getJavaClass());
@@ -99,9 +101,9 @@ public class ExtensionBeanDeployer
       this.extensions.add(extension);
    }
    
-   protected <X> void createObserverMethods(RIBean<X> declaringBean, BeanManagerImpl beanManager, WeldClass<X> annotatedClass, Set<ObserverMethodImpl<?, ?>> observerMethods)
+   protected <X> void createObserverMethods(RIBean<X> declaringBean, BeanManagerImpl beanManager, WeldClass<? super X> annotatedClass, Set<ObserverMethodImpl<?, ?>> observerMethods)
    {
-      for (WeldMethod<?, ? super X> method : annotatedClass.getDeclaredWeldMethodsWithAnnotatedParameters(Observes.class))
+      for (WeldMethod<?, ? super X> method : Beans.getObserverMethods(annotatedClass))
       {
          createObserverMethod(declaringBean, beanManager, method, observerMethods);
       }

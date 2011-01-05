@@ -8,6 +8,7 @@ import javax.servlet.http.HttpSession;
 
 import org.jboss.weld.Container;
 import org.jboss.weld.context.AbstractBoundContext;
+import org.jboss.weld.context.ManagedConversation;
 import org.jboss.weld.context.beanstore.NamingScheme;
 import org.jboss.weld.context.beanstore.SimpleNamingScheme;
 import org.jboss.weld.context.beanstore.http.EagerSessionBeanStore;
@@ -91,11 +92,18 @@ public class HttpSessionContextImpl extends AbstractBoundContext<HttpServletRequ
          invalidate();
          if (conversationContext.isActive())
          {
-            getConversationContext().invalidate();
+            // Make sure *every* conversation is transient so we don't propagate it
+            for (ManagedConversation conversation : conversationContext.getConversations())
+            {
+               if (!conversation.isTransient()) 
+               {
+                  conversation.end();
+               }
+            }
          }
          else
          {
-            // In a request, with no coversations, so destroy now
+            // In a request, with no conversations, so destroy now
             getConversationContext().destroy(session);
          }
          return false;

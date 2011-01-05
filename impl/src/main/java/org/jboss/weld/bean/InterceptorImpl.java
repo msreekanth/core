@@ -32,6 +32,7 @@ import org.jboss.interceptor.proxy.SimpleInterceptionChain;
 import org.jboss.interceptor.reader.ClassMetadataInterceptorReference;
 import org.jboss.interceptor.spi.metadata.InterceptorMetadata;
 import org.jboss.weld.bean.interceptor.WeldInterceptorClassMetadata;
+import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.exceptions.DeploymentException;
 import org.jboss.weld.exceptions.WeldException;
 import org.jboss.weld.introspector.WeldClass;
@@ -51,14 +52,14 @@ public class InterceptorImpl<T> extends ManagedBean<T> implements Interceptor<T>
    
    private final boolean serializable;
    
-   public static <T> InterceptorImpl<T> of(WeldClass<T> type, BeanManagerImpl beanManager)
+   public static <T> InterceptorImpl<T> of(WeldClass<T> type, BeanManagerImpl beanManager, ServiceRegistry services)
    {
-      return new InterceptorImpl<T>(type, beanManager);
+      return new InterceptorImpl<T>(type, beanManager, services);
    }
 
-   protected InterceptorImpl(WeldClass<T> type, BeanManagerImpl beanManager)
+   protected InterceptorImpl(WeldClass<T> type, BeanManagerImpl beanManager, ServiceRegistry services)
    {
-      super(type, new StringBuilder().append(Interceptor.class.getSimpleName()).append(BEAN_ID_SEPARATOR).append(type.getName()).toString(), beanManager);
+      super(type, new StringBuilder().append(Interceptor.class.getSimpleName()).append(BEAN_ID_SEPARATOR).append(type.getName()).toString(), beanManager, services);
       this.interceptorMetadata = beanManager.getInterceptorMetadataReader().getInterceptorMetadata(ClassMetadataInterceptorReference.of(WeldInterceptorClassMetadata.of(type)));
       this.serializable = type.isSerializable();
       this.interceptorBindingTypes = new HashSet<Annotation>();
@@ -92,9 +93,8 @@ public class InterceptorImpl<T> extends ManagedBean<T> implements Interceptor<T>
       try
       {
         org.jboss.interceptor.spi.model.InterceptionType interceptionType = org.jboss.interceptor.spi.model.InterceptionType.valueOf(type.name());
-        Set<InterceptorInvocation<Object>> invocationSet = Collections.singleton(new InterceptorInvocation<Object>(instance, interceptorMetadata, interceptionType));
         Collection<InterceptorInvocation<?>> invocations = new ArrayList<InterceptorInvocation<?>>();
-        invocations.add(new InterceptorInvocation(instance, interceptorMetadata, interceptionType));
+        invocations.add(new InterceptorInvocation<T>(instance, interceptorMetadata, interceptionType));
         return new SimpleInterceptionChain( invocations, interceptionType, instance, ctx.getMethod()).invokeNextInterceptor(ctx);
       } catch (Throwable e)
       {

@@ -18,6 +18,7 @@ package org.jboss.weld.injection;
 
 import static org.jboss.weld.injection.Exceptions.rethrowException;
 import static org.jboss.weld.logging.messages.BeanMessage.PROXY_REQUIRED;
+import static org.jboss.weld.util.reflection.Reflections.cast;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
@@ -262,7 +263,7 @@ public class ConstructorInjectionPoint<T> extends ForwardingWeldConstructor<T> i
       {
          WeldConstructor<T> constructor = getWeldConstructor();
          Bean<T> bean = getDeclaringBean();
-         if (constructor == null || bean == null)
+         if (constructor == null || (bean == null && getDeclaringBeanId() != null))
          {
             throw new IllegalStateException(ReflectionMessage.UNABLE_TO_GET_CONSTRUCTOR_ON_DESERIALIZATION, getDeclaringBeanId(), getDeclaringWeldClass(), signature);
          }
@@ -274,11 +275,10 @@ public class ConstructorInjectionPoint<T> extends ForwardingWeldConstructor<T> i
          return getDeclaringWeldClass().getDeclaredWeldConstructor(signature);
       }
       
-      @SuppressWarnings("unchecked")
       @Override
       protected WeldClass<T> getDeclaringWeldClass()
       {
-         return (WeldClass<T>) super.getDeclaringWeldClass();
+         return cast(super.getDeclaringWeldClass());
       }
       
    }

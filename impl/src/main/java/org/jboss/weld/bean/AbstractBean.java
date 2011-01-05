@@ -47,6 +47,7 @@ import javax.inject.Qualifier;
 
 import org.jboss.weld.Container;
 import org.jboss.weld.bootstrap.BeanDeployerEnvironment;
+import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.exceptions.DefinitionException;
 import org.jboss.weld.injection.WeldInjectionPoint;
 import org.jboss.weld.introspector.WeldAnnotated;
@@ -79,24 +80,35 @@ public abstract class AbstractBean<T, S> extends RIBean<T>
    protected boolean alternative;
    protected Class<T> type;
    protected Set<Type> types;
-   private Set<WeldInjectionPoint<?, ?>> injectionPoints;
-   private Set<WeldInjectionPoint<?, ?>> delegateInjectionPoints;
-   private Set<WeldInjectionPoint<?, ?>> newInjectionPoints;
+   private ArraySet<WeldInjectionPoint<?, ?>> injectionPoints;
+   private ArraySet<WeldInjectionPoint<?, ?>> delegateInjectionPoints;
+   private ArraySet<WeldInjectionPoint<?, ?>> newInjectionPoints;
    protected BeanManagerImpl beanManager;
+   private final ServiceRegistry services;
    private boolean initialized;
+   private boolean proxyRequired;
 
    /**
     * Constructor
     * 
     * @param beanManager The Bean manager
     */
-   public AbstractBean(String idSuffix, BeanManagerImpl beanManager)
+   public AbstractBean(String idSuffix, BeanManagerImpl beanManager, ServiceRegistry services)
    {
       super(idSuffix, beanManager);
       this.beanManager = beanManager;
-      this.injectionPoints = new HashSet<WeldInjectionPoint<?, ?>>();
-      this.delegateInjectionPoints = new HashSet<WeldInjectionPoint<?,?>>();
-      this.newInjectionPoints = new HashSet<WeldInjectionPoint<?,?>>();
+      this.injectionPoints = new ArraySet<WeldInjectionPoint<?, ?>>();
+      this.delegateInjectionPoints = new ArraySet<WeldInjectionPoint<?, ?>>();
+      this.newInjectionPoints = new ArraySet<WeldInjectionPoint<?, ?>>();
+      this.services = services;
+   }
+
+   @Override
+   public void cleanupAfterBoot()
+   {
+      injectionPoints.trimToSize();
+      delegateInjectionPoints.trimToSize();
+      newInjectionPoints.trimToSize();
    }
 
    /**
@@ -117,6 +129,14 @@ public abstract class AbstractBean<T, S> extends RIBean<T>
       initName();
       initScope();
       checkDelegateInjectionPoints();
+      if (getScope() != null)
+      {
+         proxyRequired = Container.instance().services().get(MetaAnnotationStore.class).getScopeModel(getScope()).isNormal();
+      }
+      else
+      {
+         proxyRequired = false;
+      }
       this.qualifiers = Collections.unmodifiableSet(new ArraySet<Annotation>(qualifiers));
    }
    
@@ -432,12 +452,6 @@ public abstract class AbstractBean<T, S> extends RIBean<T>
    }
 
    @Override
-   public boolean isProxyable()
-   {
-      return getWeldAnnotated().isProxyable();
-   }
-
-   @Override
    public boolean isDependent()
    {
       return Dependent.class.equals(getScope());
@@ -469,4 +483,15 @@ public abstract class AbstractBean<T, S> extends RIBean<T>
       return initialized;
    }
    
+   @Override
+   public boolean isProxyRequired()
+   {
+      return proxyRequired;
+   }
+   
+   protected ServiceRegistry getServices()
+   {
+      return services;
+   }
+
 }

@@ -16,9 +16,10 @@
  */
 package org.jboss.weld.jsf;
 
+import java.util.List;
+import java.util.Map;
+
 import javax.enterprise.context.Conversation;
-import javax.enterprise.context.spi.Context;
-import javax.enterprise.inject.Instance;
 import javax.faces.application.ViewHandler;
 import javax.faces.application.ViewHandlerWrapper;
 import javax.faces.context.FacesContext;
@@ -42,18 +43,34 @@ import org.jboss.weld.context.http.HttpConversationContext;
  * filter, phase listener, etc) to capture the conversation id and restore the
  * long-running conversation.
  * </p>
- * QUESTION should we do the same for getResourceURL?
- * TODO we should enable a way to disable conversation propagation by URL
  * 
  * @author Dan Allen
+ * @author Pete Muir
  */
 public class ConversationAwareViewHandler extends ViewHandlerWrapper
 {
-   private ViewHandler delegate;
+   
+   private static enum Source
+   {
+      
+      ACTION,
+      BOOKMARKABLE,
+      REDIRECT,
+      RESOURCE;
+      
+   }
+
+   private final ViewHandler delegate;
+   private final ConversationContext conversationContext;
+   private final ThreadLocal<Source> source;
+   
 
    public ConversationAwareViewHandler(ViewHandler delegate)
    {
       this.delegate = delegate;
+      Container container = Container.instance();
+      this.conversationContext = container.deploymentManager().instance().select(HttpConversationContext.class).get();
+      this.source = new ThreadLocal<ConversationAwareViewHandler.Source>();
    }
 
    /**
@@ -61,18 +78,18 @@ public class ConversationAwareViewHandler extends ViewHandlerWrapper
     * long-running, append the conversation id request parameter to the query
     * string part of the URL, but only if the request parameter is not already
     * present.
-    *
-    * This covers all cases: form actions, link hrefs, Ajax calls, and redirect URLs. 
+    * 
+    * This covers form actions Ajax calls, and redirect URLs (which we want) and
+    * link hrefs (which we don't)
     * 
     * @see {@link ViewHandler#getActionURL(FacesContext, String)}
     */
    @Override
    public String getActionURL(FacesContext facesContext, String viewId)
    {
-      ConversationContext conversationContext = instance().select(HttpConversationContext.class).get();
       String actionUrl = super.getActionURL(facesContext, viewId);
       Conversation conversation = conversationContext.getCurrentConversation();
-      if (!conversation.isTransient())
+      if (!getSource().equals(Source.BOOKMARKABLE) && !conversation.isTransient())
       {
          return new FacesUrlTransformer(actionUrl, facesContext).appendConversationIdIfNecessary(conversationContext.getParameterName(), conversation.getId()).getUrl();
       }
@@ -81,19 +98,65 @@ public class ConversationAwareViewHandler extends ViewHandlerWrapper
          return actionUrl;
       }
    }
+   
+   private Source getSource()
+   {
+      if (source.get() == null)
+      {
+         return Source.ACTION;
+      }
+      else
+      {
+         return source.get();
+      }
+   }
+   
+   @Override
+   public String getBookmarkableURL(FacesContext context, String viewId, Map<String, List<String>> parameters, boolean includeViewParams)
+   {
+      try
+      {
+         source.set(Source.BOOKMARKABLE);
+         return super.getBookmarkableURL(context, viewId, parameters, includeViewParams);
+      }
+      finally
+      {
+         source.remove();
+      }
+   }
+   
+   @Override
+   public String getRedirectURL(FacesContext context, String viewId, Map<String, List<String>> parameters, boolean includeViewParams)
+   {
+      try
+      {
+         source.set(Source.REDIRECT);
+         return super.getRedirectURL(context, viewId, parameters, includeViewParams);
+      }
+      finally
+      {
+         source.remove();
+      }
+   }
+   
+   @Override
+   public String getResourceURL(FacesContext context, String path)
+   {
+      try
+      {
+         source.set(Source.RESOURCE);
+         return super.getResourceURL(context, path);
+      }
+      finally
+      {
+         source.remove();
+      }
+   }
 
-   /**
-    * @see {@link ViewHandlerWrapper#getWrapped()}
-    */
    @Override
    public ViewHandler getWrapped()
    {
       return delegate;
-   }
-   
-   private static Instance<Context> instance()
-   {
-      return Container.instance().deploymentManager().instance().select(Context.class);
    }
 
 }

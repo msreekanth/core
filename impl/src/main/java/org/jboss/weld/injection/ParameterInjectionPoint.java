@@ -20,6 +20,7 @@ import static org.jboss.weld.logging.messages.BeanMessage.CANNOT_READ_OBJECT;
 import static org.jboss.weld.logging.messages.BeanMessage.IP_NOT_CONSTRUCTOR_OR_METHOD;
 import static org.jboss.weld.logging.messages.BeanMessage.PARAM_NOT_IN_PARAM_LIST;
 import static org.jboss.weld.logging.messages.BeanMessage.PROXY_REQUIRED;
+import static org.jboss.weld.util.reflection.Reflections.cast;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
@@ -31,9 +32,11 @@ import java.util.Set;
 
 import javax.decorator.Delegate;
 import javax.enterprise.context.spi.CreationalContext;
+import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.spi.Annotated;
 import javax.enterprise.inject.spi.Bean;
 import javax.enterprise.inject.spi.Decorator;
+import javax.enterprise.inject.spi.InjectionPoint;
 
 import org.jboss.weld.exceptions.IllegalStateException;
 import org.jboss.weld.exceptions.InvalidObjectException;
@@ -46,6 +49,7 @@ import org.jboss.weld.introspector.WeldMethod;
 import org.jboss.weld.introspector.WeldParameter;
 import org.jboss.weld.logging.messages.ReflectionMessage;
 import org.jboss.weld.manager.BeanManagerImpl;
+import org.jboss.weld.util.reflection.Reflections;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
@@ -61,12 +65,15 @@ public class ParameterInjectionPoint<T, X> extends ForwardingWeldParameter<T, X>
    private final Bean<?> declaringBean;
    private final WeldParameter<T, X> parameter;
    private final boolean delegate;
+   private final boolean cacheable;
+   private Bean<?> cachedBean;
 
    private ParameterInjectionPoint(Bean<?> declaringBean, WeldParameter<T, X> parameter)
    {
       this.declaringBean = declaringBean;
       this.parameter = parameter;
       this.delegate = isAnnotationPresent(Delegate.class) && declaringBean instanceof Decorator<?>;
+      this.cacheable = !delegate && !InjectionPoint.class.isAssignableFrom(parameter.getJavaClass()) && !Instance.class.isAssignableFrom(parameter.getJavaClass());
    }
 
    @Override
@@ -116,10 +123,22 @@ public class ParameterInjectionPoint<T, X> extends ForwardingWeldParameter<T, X>
       throw new UnsupportedOperationException();
    }
 
-   @SuppressWarnings("unchecked")
    public T getValueToInject(BeanManagerImpl manager, CreationalContext<?> creationalContext)
    {
-      return (T) manager.getInjectableReference(this, creationalContext);
+      T objectToInject;
+      if (!cacheable)
+      {
+         objectToInject = Reflections.<T>cast(manager.getInjectableReference(this, creationalContext));
+      }
+      else
+      {
+         if (cachedBean == null)
+         {
+            cachedBean = manager.resolve(manager.getBeans(this));
+         }
+         objectToInject = Reflections.<T>cast(manager.getReference(this, cachedBean, creationalContext));
+      }
+      return objectToInject;
    }
 
    public Annotated getAnnotated()
@@ -193,7 +212,7 @@ public class ParameterInjectionPoint<T, X> extends ForwardingWeldParameter<T, X>
       {
          WeldParameter<T, ?> parameter = getWeldParameter();
          Bean<T> bean = getDeclaringBean();
-         if (parameter == null || bean == null)
+         if (parameter == null || (bean == null && getDeclaringBeanId() != null))
          {
             throw new IllegalStateException(ReflectionMessage.UNABLE_TO_GET_PARAMETER_ON_DESERIALIZATION, getDeclaringBeanId(), getDeclaringWeldClass(), methodSignature, parameterPosition);
          }
@@ -207,12 +226,7 @@ public class ParameterInjectionPoint<T, X> extends ForwardingWeldParameter<T, X>
             WeldMethod<?, ?> method = getDeclaringWeldClass().getDeclaredWeldMethod(methodSignature);
             if (method.getParameters().size() > parameterPosition)
             {
-               WeldParameter<?, ?> p = method.getWeldParameters().get(parameterPosition);
-               
-               @SuppressWarnings("unchecked")
-               WeldParameter<T, ?> px = (WeldParameter<T, ?>) p;
-               
-               return px;
+               return cast(method.getWeldParameters().get(parameterPosition));
             }
             else
             {
@@ -224,12 +238,7 @@ public class ParameterInjectionPoint<T, X> extends ForwardingWeldParameter<T, X>
             WeldConstructor<?> constructor = getDeclaringWeldClass().getDeclaredWeldConstructor(constructorSignature);
             if (constructor.getParameters().size() > parameterPosition)
             {
-               WeldParameter<?, ?> p = constructor.getWeldParameters().get(parameterPosition);
-               
-               @SuppressWarnings("unchecked")
-               WeldParameter<T, ?> px = (WeldParameter<T, ?>) p;
-               
-               return px;
+               return cast(constructor.getWeldParameters().get(parameterPosition));
             }
             else
             {

@@ -38,6 +38,7 @@ import org.jboss.weld.injection.MethodInjectionPoint;
 import org.jboss.weld.injection.WeldInjectionPoint;
 import org.jboss.weld.introspector.WeldClass;
 import org.jboss.weld.introspector.WeldMethod;
+import org.jboss.weld.logging.messages.BeanMessage;
 import org.jboss.weld.util.Beans;
 
 /**
@@ -47,24 +48,28 @@ import org.jboss.weld.util.Beans;
 public class SimpleInjectionTarget<T> implements InjectionTarget<T>
 {
 
-   protected final BeanManagerImpl beanManager;
+   private final BeanManagerImpl beanManager;
    private final WeldClass<T> type;
    private final ConstructorInjectionPoint<T> constructor;
-   protected final List<Set<FieldInjectionPoint<?, ?>>> injectableFields;
-   protected final List<Set<MethodInjectionPoint<?, ?>>> initializerMethods;
+   private final List<Set<FieldInjectionPoint<?, ?>>> injectableFields;
+   private final List<Set<MethodInjectionPoint<?, ?>>> initializerMethods;
    private final List<WeldMethod<?, ? super T>> postConstructMethods;
    private final List<WeldMethod<?, ? super T>> preDestroyMethods;
    private final Set<InjectionPoint> injectionPoints;
-   protected final Set<WeldInjectionPoint<?, ?>> ejbInjectionPoints;
-   protected final Set<WeldInjectionPoint<?, ?>> persistenceContextInjectionPoints;
-   protected final Set<WeldInjectionPoint<?, ?>> persistenceUnitInjectionPoints;
-   protected final Set<WeldInjectionPoint<?, ?>> resourceInjectionPoints;
+   private final Set<WeldInjectionPoint<?, ?>> ejbInjectionPoints;
+   private final Set<WeldInjectionPoint<?, ?>> persistenceContextInjectionPoints;
+   private final Set<WeldInjectionPoint<?, ?>> persistenceUnitInjectionPoints;
+   private final Set<WeldInjectionPoint<?, ?>> resourceInjectionPoints;
 
    public SimpleInjectionTarget(WeldClass<T> type, BeanManagerImpl beanManager)
    {
       this.beanManager = beanManager;
       this.type = type;
       this.injectionPoints = new HashSet<InjectionPoint>();
+      if (type.getJavaClass().isInterface())
+      {
+         throw new DefinitionException(BeanMessage.INJECTION_TARGET_CANNOT_BE_CREATED_FOR_INTERFACE, type);
+      }
       ConstructorInjectionPoint<T> constructor = null;
       try
       {
@@ -88,13 +93,6 @@ public class SimpleInjectionTarget<T> implements InjectionTarget<T>
       this.persistenceContextInjectionPoints = Beans.getPersistenceContextInjectionPoints(null, type, beanManager);
       this.persistenceUnitInjectionPoints = Beans.getPersistenceUnitInjectionPoints(null, type, beanManager);
       this.resourceInjectionPoints = Beans.getResourceInjectionPoints(null, type, beanManager);
-      for (InjectionPoint ip : this.injectionPoints)
-      {
-         if (ip.getType().equals(InjectionPoint.class))
-         {
-            throw new DefinitionException(INJECTION_ON_NON_CONTEXTUAL, type, ip);
-         }
-      }
    }
 
    public T produce(CreationalContext<T> ctx)
@@ -177,6 +175,21 @@ public class SimpleInjectionTarget<T> implements InjectionTarget<T>
    protected WeldClass<T> getType()
    {
       return type;
+   }
+   
+   protected BeanManagerImpl getBeanManager()
+   {
+      return beanManager;
+   }
+   
+   protected List<Set<FieldInjectionPoint<?, ?>>> getInjectableFields()
+   {
+      return injectableFields;
+   }
+   
+   protected List<Set<MethodInjectionPoint<?, ?>>> getInitializerMethods()
+   {
+      return initializerMethods;
    }
 
 }

@@ -31,6 +31,7 @@ import javax.enterprise.context.spi.Contextual;
 import javax.enterprise.context.spi.CreationalContext;
 
 import org.jboss.weld.Container;
+import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.context.api.ContextualInstance;
 import org.jboss.weld.context.beanstore.BeanStore;
 import org.jboss.weld.exceptions.IllegalArgumentException;
@@ -59,6 +60,8 @@ public abstract class AbstractContext implements Context
    
    private final boolean multithreaded;
    
+   private final ServiceRegistry serviceRegistry;
+   
    /**
     * Constructor
     * 
@@ -67,6 +70,7 @@ public abstract class AbstractContext implements Context
    public AbstractContext(boolean multithreaded)
    {
       this.multithreaded = multithreaded;
+      this.serviceRegistry = Container.instance().services();
    }
 
    /**
@@ -117,7 +121,7 @@ public abstract class AbstractContext implements Context
             T instance = contextual.create(creationalContext);
             if (instance != null)
             {
-               beanInstance = new SerializableContextualInstanceImpl<Contextual<T>, T>(contextual, instance, creationalContext);
+               beanInstance = new SerializableContextualInstanceImpl<Contextual<T>, T>(contextual, instance, creationalContext, serviceRegistry.get(ContextualStore.class));
                getBeanStore().put(id, beanInstance);
             }
             return instance;
@@ -190,9 +194,14 @@ public abstract class AbstractContext implements Context
       return Container.instance().services().get(ContextualStore.class).<Contextual<T>, T>getContextual(id);
    }
    
-   protected static String getId(Contextual<?> contextual)
+   protected String getId(Contextual<?> contextual)
    {
-      return Container.instance().services().get(ContextualStore.class).putIfAbsent(contextual);
+      return serviceRegistry.get(ContextualStore.class).putIfAbsent(contextual);
+   }
+   
+   protected ServiceRegistry getServiceRegistry()
+   {
+      return serviceRegistry;
    }
    
 }

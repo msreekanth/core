@@ -20,6 +20,7 @@ import static org.jboss.weld.logging.messages.BeanMessage.DISPOSE_NOT_FIRST_PARA
 import static org.jboss.weld.logging.messages.BeanMessage.INCONSISTENT_ANNOTATIONS_ON_METHOD;
 import static org.jboss.weld.logging.messages.BeanMessage.METHOD_NOT_BUSINESS_METHOD;
 import static org.jboss.weld.logging.messages.BeanMessage.MULTIPLE_DISPOSE_PARAMS;
+import static org.jboss.weld.util.reflection.Reflections.cast;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -35,6 +36,7 @@ import javax.enterprise.inject.Produces;
 import javax.inject.Inject;
 
 import org.jboss.weld.bootstrap.BeanDeployerEnvironment;
+import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.exceptions.DefinitionException;
 import org.jboss.weld.injection.MethodInjectionPoint;
 import org.jboss.weld.introspector.WeldMethod;
@@ -49,14 +51,14 @@ public class DisposalMethod<X, T> extends AbstractReceiverBean<X, T, Method>
    protected MethodInjectionPoint<T, ? super X> disposalMethodInjectionPoint;
    private WeldParameter<?, ? super X> disposesParameter;
    
-   public static <X, T> DisposalMethod<X, T> of(BeanManagerImpl manager, WeldMethod<T, ? super X> method, AbstractClassBean<X> declaringBean)
+   public static <X, T> DisposalMethod<X, T> of(BeanManagerImpl manager, WeldMethod<T, ? super X> method, AbstractClassBean<X> declaringBean, ServiceRegistry services)
    {
-      return new DisposalMethod<X, T>(manager, method, declaringBean);
+      return new DisposalMethod<X, T>(manager, method, declaringBean, services);
    }
 
-   protected DisposalMethod(BeanManagerImpl beanManager, WeldMethod<T, ? super X> disposalMethod, AbstractClassBean<X> declaringBean)
+   protected DisposalMethod(BeanManagerImpl beanManager, WeldMethod<T, ? super X> disposalMethod, AbstractClassBean<X> declaringBean, ServiceRegistry services)
    {
-      super(new StringBuilder().append(DisposalMethod.class.getSimpleName()).append(BEAN_ID_SEPARATOR).append(declaringBean.getWeldAnnotated().getName()).append(disposalMethod.getSignature().toString()).toString(), declaringBean, beanManager);
+      super(new StringBuilder().append(DisposalMethod.class.getSimpleName()).append(BEAN_ID_SEPARATOR).append(declaringBean.getWeldAnnotated().getName()).append(disposalMethod.getSignature().toString()).toString(), declaringBean, beanManager, services);
       this.disposalMethodInjectionPoint = MethodInjectionPoint.of(this, disposalMethod);
       initQualifiers();
       initType();
@@ -83,10 +85,9 @@ public class DisposalMethod<X, T> extends AbstractReceiverBean<X, T, Method>
       initDisposesParameter();
    }
 
-   @SuppressWarnings("unchecked")
    protected void initType()
    {
-      this.type = (Class<T>) disposalMethodInjectionPoint.getAnnotatedParameters(Disposes.class).get(0).getJavaClass();
+      this.type = cast(disposalMethodInjectionPoint.getAnnotatedParameters(Disposes.class).get(0).getJavaClass());
    }
 
    @Override
@@ -274,5 +275,6 @@ public class DisposalMethod<X, T> extends AbstractReceiverBean<X, T, Method>
    {
       return "Disposer method [" + getDisposesParameter().getDeclaringCallable() + "]";
    }
+
 
 }

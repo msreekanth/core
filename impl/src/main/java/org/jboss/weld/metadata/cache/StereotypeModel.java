@@ -29,6 +29,7 @@ import static org.jboss.weld.logging.messages.ReflectionMessage.MISSING_TARGET_M
 
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Target;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -54,7 +55,7 @@ import org.slf4j.cal10n.LocLogger;
  */
 public class StereotypeModel<T extends Annotation> extends AnnotationModel<T>
 {
-   private static final Set<Class<? extends Annotation>> META_ANNOTATIONS = Arrays2.<Class<? extends Annotation>>asSet(Stereotype.class);
+   private static final Set<Class<? extends Annotation>> META_ANNOTATIONS = Collections.<Class<? extends Annotation>>singleton(Stereotype.class);
    private static final LocLogger log = loggerFactory().getLogger(REFLECTION);
    
    // Is the stereotype an alternative
@@ -163,24 +164,25 @@ public class StereotypeModel<T extends Annotation> extends AnnotationModel<T>
    }
    
    @Override
-   protected void initValid()
+   protected void check()
    {
-      super.initValid();
-      if (!getAnnotatedAnnotation().isAnnotationPresent(Target.class))
+      super.check();
+      if (isValid())
       {
-         this.valid = false;
-         log.debug(MISSING_TARGET, getAnnotatedAnnotation());
-      }
-      else if (!(
-            Arrays2.unorderedEquals(getAnnotatedAnnotation().getAnnotation(Target.class).value(), METHOD, FIELD, TYPE) ||
-            Arrays2.unorderedEquals(getAnnotatedAnnotation().getAnnotation(Target.class).value(), TYPE) ||
-            Arrays2.unorderedEquals(getAnnotatedAnnotation().getAnnotation(Target.class).value(), METHOD) ||
-            Arrays2.unorderedEquals(getAnnotatedAnnotation().getAnnotation(Target.class).value(), FIELD) ||
-            Arrays2.unorderedEquals(getAnnotatedAnnotation().getAnnotation(Target.class).value(), METHOD, TYPE)
-         ))
-      {
-         this.valid = false;
-         log.debug(MISSING_TARGET_METHOD_FIELD_TYPE_PARAMETER_OR_TARGET_METHOD_TYPE_OR_TARGET_METHOD_OR_TARGET_TYPE_OR_TARGET_FIELD, getAnnotatedAnnotation());
+         if (!getAnnotatedAnnotation().isAnnotationPresent(Target.class))
+         {
+            log.debug(MISSING_TARGET, getAnnotatedAnnotation());
+         }
+         else if (!(
+               Arrays2.unorderedEquals(getAnnotatedAnnotation().getAnnotation(Target.class).value(), METHOD, FIELD, TYPE) ||
+               Arrays2.unorderedEquals(getAnnotatedAnnotation().getAnnotation(Target.class).value(), TYPE) ||
+               Arrays2.unorderedEquals(getAnnotatedAnnotation().getAnnotation(Target.class).value(), METHOD) ||
+               Arrays2.unorderedEquals(getAnnotatedAnnotation().getAnnotation(Target.class).value(), FIELD) ||
+               Arrays2.unorderedEquals(getAnnotatedAnnotation().getAnnotation(Target.class).value(), METHOD, TYPE)
+            ))
+         {
+            log.debug(MISSING_TARGET_METHOD_FIELD_TYPE_PARAMETER_OR_TARGET_METHOD_TYPE_OR_TARGET_METHOD_OR_TARGET_TYPE_OR_TARGET_FIELD, getAnnotatedAnnotation());
+         }
       }
    }
 

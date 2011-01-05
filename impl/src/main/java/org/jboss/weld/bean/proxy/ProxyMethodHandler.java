@@ -20,14 +20,20 @@ package org.jboss.weld.bean.proxy;
 import static org.jboss.weld.logging.Category.BEAN;
 import static org.jboss.weld.logging.LoggerFactory.loggerFactory;
 import static org.jboss.weld.logging.messages.BeanMessage.BEAN_INSTANCE_NOT_SET_ON_PROXY;
+import static org.jboss.weld.logging.messages.BeanMessage.PROXY_HANDLER_SERIALIZED_FOR_NON_SERIALIZABLE_BEAN;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
 
 import javassist.util.proxy.MethodHandler;
 
+import javax.enterprise.inject.spi.Bean;
+import javax.enterprise.inject.spi.PassivationCapable;
+
 import org.jboss.interceptor.util.proxy.TargetInstanceProxy;
+import org.jboss.weld.Container;
 import org.jboss.weld.exceptions.WeldException;
+import org.jboss.weld.serialization.spi.ContextualStore;
 import org.slf4j.cal10n.LocLogger;
 
 /**
@@ -39,15 +45,31 @@ import org.slf4j.cal10n.LocLogger;
  */
 public class ProxyMethodHandler implements MethodHandler, Serializable
 {
+
+   private static final long serialVersionUID = 5293834510764991583L;
+
    // The log provider
    protected static final LocLogger log = loggerFactory().getLogger(BEAN);
 
    // The bean instance to forward calls to
    private BeanInstance beanInstance;
 
-   public ProxyMethodHandler(BeanInstance beanInstance)
+   private final String beanId;
+
+   private transient Bean<?> bean;
+
+   public ProxyMethodHandler(BeanInstance beanInstance, Bean<?> bean)
    {
       this.beanInstance = beanInstance;
+      this.bean = bean;
+      if(bean instanceof PassivationCapable)
+      {
+         this.beanId = ((PassivationCapable)bean).getId();
+      }
+      else
+      {
+         this.beanId = null;
+      }
    }
 
    /* (non-Javadoc)
@@ -55,6 +77,15 @@ public class ProxyMethodHandler implements MethodHandler, Serializable
     */
    public Object invoke(Object self, Method thisMethod, Method proceed, Object[] args) throws Throwable
    {
+      if (thisMethod == null)
+      {
+         log.trace("MethodHandler processing returning bean instance for " + self.getClass());
+         if (beanInstance == null)
+         {
+            throw new WeldException(BEAN_INSTANCE_NOT_SET_ON_PROXY);
+         }
+         return beanInstance.getInstance();
+      }
       log.trace("MethodHandler processing call to " + thisMethod + " for " + self.getClass());
       if (thisMethod.getDeclaringClass().equals(TargetInstanceProxy.class))
       {
@@ -77,12 +108,12 @@ public class ProxyMethodHandler implements MethodHandler, Serializable
       }
       else if (thisMethod.getName().equals("writeReplace"))
       {
-         return new org.jboss.weld.bean.proxy.util.SerializableProxy(self);
+         return new org.jboss.weld.bean.proxy.util.SerializableProxy(self, getBean());
       }
       else if (thisMethod.getName().equals("_initMH"))
       {
          log.trace("Setting new MethodHandler with bean instance for " + args[0] + " on " + self.getClass());
-         return new ProxyMethodHandler(new TargetBeanInstance(args[0]));
+         return new ProxyMethodHandler(new TargetBeanInstance(args[0]), getBean());
       }
       else
       {
@@ -90,8 +121,30 @@ public class ProxyMethodHandler implements MethodHandler, Serializable
          {
             throw new WeldException(BEAN_INSTANCE_NOT_SET_ON_PROXY);
          }
-         return beanInstance.invoke(thisMethod, args);
+         Object instance = beanInstance.getInstance();
+         Object result = beanInstance.invoke(instance, thisMethod, args);
+         // if the method returns this return the proxy instead
+         // to prevent the bean instance escaping
+         if (result != null && result == instance)
+         {
+            return self;
+         }
+         return result;
       }
    }
+
+   private Bean<?> getBean()
+   {
+      if (bean == null)
+      {
+         if (beanId == null)
+         {
+            throw new WeldException(PROXY_HANDLER_SERIALIZED_FOR_NON_SERIALIZABLE_BEAN);
+         }
+         bean = Container.instance().services().get(ContextualStore.class).<Bean<Object>, Object> getContextual(beanId);
+      }
+      return bean;
+   }
+
 
 }

@@ -16,6 +16,8 @@
  */
 package org.jboss.weld.bootstrap.events;
 
+import static org.jboss.weld.util.reflection.Reflections.cast;
+
 import java.lang.reflect.Type;
 
 import javax.enterprise.inject.spi.AnnotatedMethod;
@@ -39,15 +41,14 @@ public class ProcessProducerMethodImpl<T, X> extends AbstractProcessProducerBean
 
    public ProcessProducerMethodImpl(BeanManagerImpl beanManager, ProducerMethod<T, X> bean)
    {
-      super(beanManager, ProcessProducerMethod.class, new Type[] { bean.getWeldAnnotated().getDeclaringType().getBaseType(), bean.getWeldAnnotated().getBaseType() }, bean);
+      super(beanManager, ProcessProducerMethod.class, new Type[] { bean.getWeldAnnotated().getBaseType(), bean.getWeldAnnotated().getDeclaringType().getBaseType() }, bean);
    }
 
-   @SuppressWarnings("unchecked")
    public AnnotatedParameter<T> getAnnotatedDisposedParameter()
    {
       if (getBean().getDisposalMethod() != null)
       {
-         return (AnnotatedParameter<T>) getBean().getDisposalMethod().getDisposesParameter();
+         return cast(getBean().getDisposalMethod().getDisposesParameter());
       }
       else
       {
@@ -55,12 +56,11 @@ public class ProcessProducerMethodImpl<T, X> extends AbstractProcessProducerBean
       }
    }
 
-   @SuppressWarnings("unchecked")
    public AnnotatedMethod<T> getAnnotatedProducerMethod()
    {
       if (getBean().getWeldAnnotated() != null)
       {
-         return (AnnotatedMethod<T>) getBean().getWeldAnnotated();
+         return cast(getBean().getWeldAnnotated());
       }
       else
       {

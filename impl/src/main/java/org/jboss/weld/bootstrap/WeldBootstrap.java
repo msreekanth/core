@@ -38,10 +38,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.enterprise.context.spi.Context;
+import javax.enterprise.inject.spi.Bean;
 import javax.enterprise.inject.spi.Extension;
 
 import org.jboss.weld.Container;
 import org.jboss.weld.ContainerState;
+import org.jboss.weld.bean.RIBean;
 import org.jboss.weld.bean.builtin.BeanManagerBean;
 import org.jboss.weld.bean.builtin.ContextBean;
 import org.jboss.weld.bean.proxy.util.SimpleProxyServices;
@@ -91,10 +93,12 @@ import org.jboss.weld.exceptions.IllegalStateException;
 import org.jboss.weld.injection.CurrentInjectionPoint;
 import org.jboss.weld.logging.messages.VersionMessage;
 import org.jboss.weld.manager.BeanManagerImpl;
+import org.jboss.weld.manager.InjectionTargetValidator;
 import org.jboss.weld.metadata.TypeStore;
 import org.jboss.weld.metadata.cache.MetaAnnotationStore;
 import org.jboss.weld.resources.ClassTransformer;
 import org.jboss.weld.resources.DefaultResourceLoader;
+import org.jboss.weld.resources.SharedObjectCache;
 import org.jboss.weld.resources.SingleThreadScheduledExecutorServiceFactory;
 import org.jboss.weld.resources.spi.ResourceLoader;
 import org.jboss.weld.resources.spi.ScheduledExecutorServiceFactory;
@@ -275,7 +279,7 @@ public class WeldBootstrap implements Bootstrap
          Container.initialize(deploymentManager, ServiceRegistries.unmodifiableServiceRegistry(deployment.getServices()));
          Container.instance().setState(ContainerState.STARTING);
 
-         this.contexts = createContexts();
+         this.contexts = createContexts(deploymentServices);
          this.deploymentVisitor = new DeploymentVisitor(deploymentManager, environment, deployment, contexts);
 
          // Read the deployment structure, this will be the physical structure
@@ -295,6 +299,7 @@ public class WeldBootstrap implements Bootstrap
       services.add(Validator.class, new Validator());
       services.add(TypeStore.class, new TypeStore());
       services.add(ClassTransformer.class, new ClassTransformer(services.get(TypeStore.class)));
+      services.add(SharedObjectCache.class, new SharedObjectCache());
       services.add(MetaAnnotationStore.class, new MetaAnnotationStore(services.get(ClassTransformer.class)));
       services.add(ContextualStore.class, new ContextualStoreImpl());
       services.add(CurrentInjectionPoint.class, new CurrentInjectionPoint());
@@ -380,7 +385,10 @@ public class WeldBootstrap implements Bootstrap
          log.debug(VALIDATING_BEANS);
          for (Entry<BeanDeploymentArchive, BeanDeployment> entry : beanDeployments.entrySet())
          {
-            deployment.getServices().get(Validator.class).validateDeployment(entry.getValue().getBeanManager(), entry.getValue().getBeanDeployer().getEnvironment());
+            BeanManagerImpl beanManager = entry.getValue().getBeanManager(); 
+            beanManager.getBeanResolver().clear();
+            deployment.getServices().get(Validator.class).validateDeployment(beanManager, entry.getValue().getBeanDeployer().getEnvironment());
+            beanManager.getServices().get(InjectionTargetValidator.class).validate();
          }
          AfterDeploymentValidationImpl.fire(deploymentManager, beanDeployments);
       }
@@ -394,11 +402,30 @@ public class WeldBootstrap implements Bootstrap
       {
          // Register the managers so external requests can handle them
          Container.instance().setState(ContainerState.VALIDATED);
+         // clear the TypeSafeResolvers, so data that is only used at startup
+         // is not kept around using up memory
+         deploymentManager.getBeanResolver().clear();
+         deploymentManager.getObserverResolver().clear();
+         deploymentManager.getDecoratorResolver().clear();
+         for (Entry<BeanDeploymentArchive, BeanDeployment> entry : beanDeployments.entrySet())
+         {
+            entry.getValue().getBeanManager().getBeanResolver().clear();
+            entry.getValue().getBeanManager().getObserverResolver().clear();
+            entry.getValue().getBeanManager().getDecoratorResolver().clear();
+            for (Bean<?> bean : entry.getValue().getBeanManager().getBeans())
+            {
+               if (bean instanceof RIBean<?>)
+               {
+                  RIBean<?> riBean = (RIBean<?>) bean;
+                  riBean.cleanupAfterBoot();
+               }
+            }
+         }
       }
       return this;
    }
 
-   protected Collection<ContextHolder<? extends Context>> createContexts()
+   protected Collection<ContextHolder<? extends Context>> createContexts(ServiceRegistry services)
    {
       List<ContextHolder<? extends Context>> contexts = new ArrayList<ContextHolder<? extends Context>>();
 
@@ -413,7 +440,7 @@ public class WeldBootstrap implements Bootstrap
       contexts.add(new ContextHolder<BoundConversationContext>(new BoundConversationContextImpl(), BoundConversationContext.class, BoundLiteral.INSTANCE));
       contexts.add(new ContextHolder<BoundRequestContext>(new BoundRequestContextImpl(), BoundRequestContext.class, BoundLiteral.INSTANCE));
       contexts.add(new ContextHolder<RequestContext>(new RequestContextImpl(), RequestContext.class, UnboundLiteral.INSTANCE));
-      contexts.add(new ContextHolder<DependentContext>(new DependentContextImpl(), DependentContext.class, UnboundLiteral.INSTANCE));
+      contexts.add(new ContextHolder<DependentContext>(new DependentContextImpl(services.get(ContextualStore.class)), DependentContext.class, UnboundLiteral.INSTANCE));
 
       if (Reflections.isClassLoadable("javax.servlet.ServletContext", deployment.getServices().get(ResourceLoader.class)))
       {

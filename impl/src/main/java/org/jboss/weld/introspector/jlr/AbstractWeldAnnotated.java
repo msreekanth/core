@@ -23,7 +23,6 @@ import static org.jboss.weld.util.reflection.Reflections.EMPTY_ANNOTATIONS;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,11 +36,12 @@ import org.jboss.weld.introspector.WeldAnnotated;
 import org.jboss.weld.literal.DefaultLiteral;
 import org.jboss.weld.metadata.TypeStore;
 import org.jboss.weld.resources.ClassTransformer;
-import org.jboss.weld.util.Proxies;
+import org.jboss.weld.resources.SharedObjectFacade;
+import org.jboss.weld.util.LazyValueHolder;
 import org.jboss.weld.util.collections.ArraySet;
 import org.jboss.weld.util.collections.ArraySetMultimap;
 import org.jboss.weld.util.collections.Arrays2;
-import org.jboss.weld.util.reflection.HierarchyDiscovery;
+import org.jboss.weld.util.reflection.Reflections;
 
 /**
  * Represents functionality common for all annotated items, mainly different
@@ -130,8 +130,7 @@ public abstract class AbstractWeldAnnotated<T, S> implements WeldAnnotated<T, S>
    private final Class<T> rawType;
    private final Type[] actualTypeArguments; 
    private final Type type;
-   private final Set<Type> typeClosure;
-   private final boolean proxyable;
+   private final LazyValueHolder<Set<Type>> typeClosure;
 
    /**
     * Constructor
@@ -142,20 +141,21 @@ public abstract class AbstractWeldAnnotated<T, S> implements WeldAnnotated<T, S>
     * @param annotationMap A map of annotation to register
     * 
     */
-   public AbstractWeldAnnotated(Map<Class<? extends Annotation>, Annotation> annotationMap, Map<Class<? extends Annotation>, Annotation> declaredAnnotationMap, ClassTransformer classTransformer, Class<T> rawType, Type type, Set<Type> typeClosure)
+   public AbstractWeldAnnotated(Map<Class<? extends Annotation>, Annotation> annotationMap, Map<Class<? extends Annotation>, Annotation> declaredAnnotationMap, ClassTransformer classTransformer, Class<T> rawType, Type type, final LazyValueHolder<Set<Type>> typeClosure)
    {
       if (annotationMap == null)
       {
          throw new WeldException(ANNOTATION_MAP_NULL);
       }
-      this.annotationMap = annotationMap;
-      this.metaAnnotationMap = new ArraySetMultimap<Class<? extends Annotation>, Annotation>();
+      this.annotationMap = SharedObjectFacade.wrap(annotationMap);
+      ArraySetMultimap<Class<? extends Annotation>, Annotation> metaAnnotationMap = new ArraySetMultimap<Class<? extends Annotation>, Annotation>();
       for (Annotation annotation : annotationMap.values())
       {
          addMetaAnnotations(metaAnnotationMap, annotation, annotation.annotationType().getAnnotations(), false);
          addMetaAnnotations(metaAnnotationMap, annotation, classTransformer.getTypeStore().get(annotation.annotationType()), false);
       }
       metaAnnotationMap.trimToSize();
+      this.metaAnnotationMap = SharedObjectFacade.wrap(metaAnnotationMap);
       
       if (declaredAnnotationMap == null)
       {
@@ -171,8 +171,7 @@ public abstract class AbstractWeldAnnotated<T, S> implements WeldAnnotated<T, S>
       {
          this.actualTypeArguments = new Type[0];
       }
-      this.typeClosure = Collections.unmodifiableSet(new ArraySet<Type>(typeClosure));
-      this.proxyable = Proxies.isTypesProxyable(typeClosure);
+      this.typeClosure = typeClosure;
    }
 
    protected AbstractWeldAnnotated(Map<Class<? extends Annotation>, Annotation> annotationMap, Map<Class<? extends Annotation>, Annotation> declaredAnnotationMap, TypeStore typeStore)
@@ -199,19 +198,6 @@ public abstract class AbstractWeldAnnotated<T, S> implements WeldAnnotated<T, S>
       this.type = null;
       this.actualTypeArguments = new Type[0];
       this.typeClosure = null;
-      this.proxyable = false;
-   }
-
-   /**
-    * Indicates if the type is proxyable to a set of pre-defined rules
-    * 
-    * @return True if proxyable, false otherwise.
-    * 
-    * @see org.jboss.weld.introspector.WeldAnnotated#isProxyable()
-    */
-   public boolean isProxyable()
-   {
-      return proxyable;
    }
 
    public Class<T> getJavaClass()
@@ -226,12 +212,15 @@ public abstract class AbstractWeldAnnotated<T, S> implements WeldAnnotated<T, S>
 
    public Set<Type> getInterfaceClosure()
    {
-      Set<Type> types = new HashSet<Type>();
-      for (Type t : rawType.getGenericInterfaces())
+      Set<Type> interfaces = new HashSet<Type>();
+      for (Type t: getTypeClosure())
       {
-         types.addAll(new HierarchyDiscovery(t).getTypeClosure());
+         if (Reflections.getRawType(t).isInterface())
+         {
+            interfaces.add(t);
+         }
       }
-      return types;
+      return Collections.unmodifiableSet(interfaces);
    }
 
    public abstract S getDelegate();
@@ -253,7 +242,7 @@ public abstract class AbstractWeldAnnotated<T, S> implements WeldAnnotated<T, S>
 
    public Set<Type> getTypeClosure()
    {
-      return typeClosure;
+      return typeClosure.get();
    }
    
    public Set<Annotation> getAnnotations()

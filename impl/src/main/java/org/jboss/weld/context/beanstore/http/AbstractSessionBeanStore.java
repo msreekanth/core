@@ -5,7 +5,6 @@ import static org.jboss.weld.logging.Category.CONTEXT;
 import static org.jboss.weld.logging.LoggerFactory.loggerFactory;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Enumeration;
 
 import javax.servlet.http.HttpSession;
@@ -63,7 +62,7 @@ public abstract class AbstractSessionBeanStore extends AttributeBeanStore
       }
       else
       {
-         log.trace("Unable to remove " + key + " from session " + this.getSession(false).getId() + " as no session could be obtained");
+         log.trace("Unable to remove " + key + " from non-existent session");
       }
    }
 
@@ -78,7 +77,7 @@ public abstract class AbstractSessionBeanStore extends AttributeBeanStore
       }
       else
       {
-         log.trace("Unable to add " + key + " to session " + this.getSession(false).getId() + " as no session could be obtained");
+         log.trace("Unable to add " + key + " to session as no session could be obtained");
       }
    }
 

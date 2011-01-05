@@ -20,6 +20,7 @@ import static org.jboss.weld.logging.messages.BeanMessage.INCONSISTENT_ANNOTATIO
 import static org.jboss.weld.logging.messages.BeanMessage.METHOD_NOT_BUSINESS_METHOD;
 import static org.jboss.weld.logging.messages.BeanMessage.MULTIPLE_DISPOSAL_METHODS;
 import static org.jboss.weld.logging.messages.BeanMessage.PRODUCER_METHOD_NOT_SPECIALIZING;
+import static org.jboss.weld.util.reflection.Reflections.cast;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -33,6 +34,7 @@ import javax.enterprise.inject.spi.InjectionPoint;
 import javax.enterprise.inject.spi.Producer;
 
 import org.jboss.weld.bootstrap.BeanDeployerEnvironment;
+import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.exceptions.DefinitionException;
 import org.jboss.weld.exceptions.IllegalStateException;
 import org.jboss.weld.injection.MethodInjectionPoint;
@@ -41,6 +43,7 @@ import org.jboss.weld.introspector.WeldMethod;
 import org.jboss.weld.introspector.WeldParameter;
 import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.util.AnnotatedTypes;
+import org.jboss.weld.util.Proxies;
 import org.jboss.weld.util.reflection.Formats;
 import org.jboss.weld.util.reflection.SecureReflections;
 
@@ -58,6 +61,7 @@ public class ProducerMethod<X, T> extends AbstractProducerBean<X, T, Method>
    private DisposalMethod<X, ?> disposalMethodBean;
    private ProducerMethod<?, ?> specializedBean;
    private final String id;
+   private final boolean proxiable;
 
    /**
     * Creates a producer method Web Bean
@@ -67,14 +71,14 @@ public class ProducerMethod<X, T> extends AbstractProducerBean<X, T, Method>
     * @param beanManager the current manager
     * @return A producer Web Bean
     */
-   public static <X, T> ProducerMethod<X, T> of(WeldMethod<T, ? super X> method, AbstractClassBean<X> declaringBean, BeanManagerImpl beanManager)
+   public static <X, T> ProducerMethod<X, T> of(WeldMethod<T, ? super X> method, AbstractClassBean<X> declaringBean, BeanManagerImpl beanManager, ServiceRegistry services)
    {
-      return new ProducerMethod<X, T>(method, declaringBean, beanManager);
+      return new ProducerMethod<X, T>(method, declaringBean, beanManager, services);
    }
 
-   protected ProducerMethod(WeldMethod<T, ? super X> method, AbstractClassBean<X> declaringBean, BeanManagerImpl beanManager)
+   protected ProducerMethod(WeldMethod<T, ? super X> method, AbstractClassBean<X> declaringBean, BeanManagerImpl beanManager, ServiceRegistry services)
    {
-      super(new StringBuilder().append(ProducerMethod.class.getSimpleName()).append(BEAN_ID_SEPARATOR).append(declaringBean.getWeldAnnotated().getName()).append(".").append(method.getSignature().toString()).toString(), declaringBean, beanManager);
+      super(new StringBuilder().append(ProducerMethod.class.getSimpleName()).append(BEAN_ID_SEPARATOR).append(declaringBean.getWeldAnnotated().getName()).append(".").append(method.getSignature().toString()).toString(), declaringBean, beanManager, services);
       this.method = MethodInjectionPoint.of(this, method);
       initType();
       initTypes();
@@ -82,6 +86,7 @@ public class ProducerMethod<X, T> extends AbstractProducerBean<X, T, Method>
       this.id = createId(method, declaringBean);
       initStereotypes();
       initProducerMethodInjectableParameters();
+      this.proxiable = Proxies.isTypesProxyable(method.getTypeClosure());
    }
 
    protected String createId(WeldMethod<T, ? super X> method, AbstractClassBean<X> declaringBean)
@@ -133,7 +138,7 @@ public class ProducerMethod<X, T> extends AbstractProducerBean<X, T, Method>
 
             public Set<InjectionPoint> getInjectionPoints()
             {
-               return (Set) getWeldInjectionPoints();
+               return cast(getWeldInjectionPoints());
             }
 
             public T produce(CreationalContext<T> creationalContext)
@@ -305,6 +310,12 @@ public class ProducerMethod<X, T> extends AbstractProducerBean<X, T, Method>
    public String toString()
    {
       return "Producer Method [" + Formats.formatType(getWeldAnnotated().getBaseType()) + "] with qualifiers [" + Formats.formatAnnotations(getQualifiers()) + "] declared as [" + getWeldAnnotated() + "]";
+   }
+
+   @Override
+   public boolean isProxyable()
+   {
+      return proxiable;
    }
 
 }

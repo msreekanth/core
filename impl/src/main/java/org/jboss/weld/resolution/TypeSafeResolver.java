@@ -16,12 +16,12 @@
  */
 package org.jboss.weld.resolution;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.MapMaker;
 
 /**
@@ -54,6 +54,7 @@ public abstract class TypeSafeResolver<R extends Resolvable, T>
    private final ConcurrentMap<R, Set<T>> resolved;
    // The beans to search
    private final Iterable<? extends T> allBeans;
+   private final ResolvableToBeanSet<R, T> resolverFunction;
    
    
 
@@ -63,7 +64,8 @@ public abstract class TypeSafeResolver<R extends Resolvable, T>
     */
    public TypeSafeResolver(Iterable<? extends T> allBeans)
    {
-      this.resolved = new MapMaker().makeComputingMap(new ResolvableToBeanSet<R, T>(this));
+      this.resolverFunction = new ResolvableToBeanSet<R, T>(this);
+      this.resolved = new MapMaker().makeComputingMap(resolverFunction);
       this.allBeans = allBeans;
    }
 
@@ -81,9 +83,17 @@ public abstract class TypeSafeResolver<R extends Resolvable, T>
     * @param resolvable The resolving criteria
     * @return An unmodifiable set of matching beans
     */
-   public Set<T> resolve(R resolvable)
+   public Set<T> resolve(R resolvable, boolean cache)
    {
-      return Collections.unmodifiableSet(resolved.get(wrap(resolvable)));
+      R wrappedResolable = wrap(resolvable);
+      if (cache)
+      {
+         return resolved.get(wrappedResolable);
+      }
+      else
+      {
+         return resolverFunction.apply(wrappedResolable);
+      }
    }
    
    /**
@@ -97,16 +107,26 @@ public abstract class TypeSafeResolver<R extends Resolvable, T>
    private Set<T> findMatching(R resolvable)
    {
       Set<T> result = new HashSet<T>();
-      for (T bean : allBeans)
+      for (T bean : getAllBeans(resolvable))
       {
          if (matches(resolvable, bean))
          {
             result.add(bean);
          }
       }
-      return result;
+      return ImmutableSet.copyOf(result);
    }
    
+   protected Iterable<? extends T> getAllBeans(R resolvable)
+   {
+      return allBeans;
+   }
+
+   protected Iterable<? extends T> getAllBeans()
+   {
+      return allBeans;
+   }
+
    protected abstract Set<T> filterResult(Set<T> matched);
 
    protected abstract Set<T> sortResult(Set<T> matched);
@@ -119,6 +139,11 @@ public abstract class TypeSafeResolver<R extends Resolvable, T>
    protected R wrap(R resolvable)
    {
       return resolvable;
+   }
+   
+   public boolean isCached(R resolvable)
+   {
+      return resolved.containsKey(wrap(resolvable));
    }
 
    /**

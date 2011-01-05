@@ -26,6 +26,10 @@
    <properties>
       <pdf.name>weld-reference.pdf</pdf.name>
       <weld.docbook.version>1.1.1-Beta5</weld.docbook.version>
+      <jdocbookSourceDirectory>src/main/docbook</jdocbookSourceDirectory>
+      <flies.plugin.version>1.1-alpha-1</flies.plugin.version>
+      <flies.srcDir>src/main/docbook</flies.srcDir>
+      <flies.dstDir>src/main/docbook</flies.dstDir>
    </properties>
 
    <build>
@@ -35,6 +39,10 @@
             <groupId>org.jboss.maven.plugins</groupId>
             <artifactId>maven-jdocbook-plugin</artifactId>
             <version>2.3.3</version>
+            <configuration>
+               <sourceDirectory>${jdocbookSourceDirectory}</sourceDirectory>
+               <sourceDocumentName>Weld_-_JSR-299_Reference_Implementation.xml</sourceDocumentName>
+            </configuration>
          </plugin>
          <plugin>
             <artifactId>maven-antrun-plugin</artifactId>
@@ -72,6 +80,11 @@
                   </configuration>
                </execution>
             </executions>
+         </plugin>
+         <plugin>
+            <groupId>net.openl10n.flies</groupId>
+            <artifactId>flies-maven-plugin</artifactId>
+            <version>${flies.plugin.version}</version>
          </plugin>
       </plugins>
    </build>

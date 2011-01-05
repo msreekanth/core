@@ -50,5 +50,65 @@ public class ProxyTest
    {
       Bean<?> bean = beanManager.resolve(beanManager.getBeans("foo"));
       Assert.assertNotNull(beanManager.getReference(bean, Object.class, beanManager.createCreationalContext(bean)));
+
+   }
+
+   @Test
+   public void testProxyInvocations()
+   {
+      Bean<?> bean = beanManager.resolve(beanManager.getBeans("foo"));
+      Foo foo = (Foo) beanManager.getReference(bean, Foo.class, beanManager.createCreationalContext(bean));
+      Assert.assertEquals(Foo.MESSAGE, foo.getMsg(0, 0L, 0D, false, 'a', 0F, (short) 0));
+      Assert.assertEquals(Foo.MESSAGE, foo.getRealMsg(0, 0L, 0D, false, 'a', 0F, (short) 0));
+   }
+
+   @Test
+   public void testSelfInvocationInConstructor()
+   {
+      Bean<?> bean = beanManager.resolve(beanManager.getBeans("baz"));
+      Baz baz = (Baz) beanManager.getReference(bean, Baz.class, beanManager.createCreationalContext(bean));
+      Assert.assertEquals(1, baz.getCount());
+   }
+
+   /**
+    * The proxy hashCode should be equal to the class hashCode (see WELD-695)
+    */
+   @Test
+   public void testHashCodeImplmentation()
+   {
+      Bean<?> bean = beanManager.resolve(beanManager.getBeans("baz"));
+      Baz baz = (Baz) beanManager.getReference(bean, Baz.class, beanManager.createCreationalContext(bean));
+      Assert.assertTrue(baz.hashCode() == baz.getClass().hashCode());
+
+      bean = beanManager.resolve(beanManager.getBeans("burt"));
+      Burt burt = (Burt) beanManager.getReference(bean, Burt.class, beanManager.createCreationalContext(bean));
+      Assert.assertTrue(burt.hashCode() == burt.getClass().hashCode());
+   }
+
+   @Test
+   public void testEqualsImplmentation()
+   {
+      Bean<?> bean = beanManager.resolve(beanManager.getBeans("baz"));
+      Baz baz1 = (Baz) beanManager.getReference(bean, Baz.class, beanManager.createCreationalContext(bean));
+      Baz baz2 = (Baz) beanManager.getReference(bean, Baz.class, beanManager.createCreationalContext(bean));
+      Assert.assertEquals(baz1, baz2);
+
+      bean = beanManager.resolve(beanManager.getBeans("burt"));
+      Burt burt1 = (Burt) beanManager.getReference(bean, Burt.class, beanManager.createCreationalContext(bean));
+      Burt burt2 = (Burt) beanManager.getReference(bean, Burt.class, beanManager.createCreationalContext(bean));
+      Assert.assertEquals(burt1, burt2);
+   }
+
+   @Test
+   public void testBeanInstanceDoesNotEscape()
+   {
+      Bean<?> bean = beanManager.resolve(beanManager.getBeans("wobble"));
+      Wobble wobble = (Wobble) beanManager.getReference(bean, Wobble.class, beanManager.createCreationalContext(bean));
+      Assert.assertSame(wobble, wobble.getThis());
+      // package private classes have a diffent code path
+      // as they do not use direct bytecode invocation
+      bean = beanManager.resolve(beanManager.getBeans("wibble"));
+      Wibble wibble = (Wibble) beanManager.getReference(bean, Wibble.class, beanManager.createCreationalContext(bean));
+      Assert.assertSame(wibble, wibble.getThis());
    }
 }

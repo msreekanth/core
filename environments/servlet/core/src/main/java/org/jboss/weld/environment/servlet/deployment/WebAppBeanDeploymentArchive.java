@@ -19,10 +19,10 @@ package org.jboss.weld.environment.servlet.deployment;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.servlet.ServletContext;
 
@@ -34,7 +34,6 @@ import org.jboss.weld.bootstrap.spi.BeansXml;
 import org.jboss.weld.ejb.spi.EjbDescriptor;
 import org.jboss.weld.environment.servlet.util.Reflections;
 import org.jboss.weld.environment.servlet.util.Servlets;
-import org.jboss.weld.resources.spi.ResourceLoader;
 
 /**
  * The means by which Web Beans are discovered on the classpath. This will only
@@ -50,16 +49,16 @@ public class WebAppBeanDeploymentArchive implements BeanDeploymentArchive
    public static final String WEB_INF_BEANS_XML = "/WEB-INF/beans.xml";
    public static final String WEB_INF_CLASSES = "/WEB-INF/classes";
    
-   private final List<String> classes;
+   private final Set<String> classes;
    private final BeansXml beansXml;
    private final ServiceRegistry services;
    
    public WebAppBeanDeploymentArchive(ServletContext servletContext, Bootstrap bootstrap)
    {
       this.services = new SimpleServiceRegistry();
-      this.classes = new ArrayList<String>();
-      List<URL> urls = new ArrayList<URL>();
-      URLScanner scanner = new URLScanner(Reflections.getClassLoader());
+      this.classes = new HashSet<String>();
+      Set<URL> urls = new HashSet<URL>();
+      URLScanner scanner = createScanner(servletContext);
       scanner.scanResources(new String[] { META_INF_BEANS_XML }, classes, urls);
       try
       {
@@ -80,6 +79,22 @@ public class WebAppBeanDeploymentArchive implements BeanDeploymentArchive
          throw new IllegalStateException("Error loading resources from servlet context ", e);
       }
       this.beansXml = bootstrap.parse(urls);
+   }
+
+   protected URLScanner createScanner(ServletContext context)
+   {
+      URLScanner scanner = (URLScanner) context.getAttribute(URLScanner.class.getName());
+      if (scanner == null)
+      {
+         ClassLoader cl = Reflections.getClassLoader();
+         scanner = new URLScanner(cl);
+      }
+      else
+      {
+         // cleanup
+         context.removeAttribute(URLScanner.class.getName());
+      }
+      return scanner;
    }
 
    public Collection<String> getBeanClasses()

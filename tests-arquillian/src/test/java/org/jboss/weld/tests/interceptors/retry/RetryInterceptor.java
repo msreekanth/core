@@ -27,16 +27,17 @@ import javax.interceptor.InvocationContext;
 @Interceptor @Retriable 
 public class RetryInterceptor
 {
+   static int invocationCount = 0;
 
    @AroundInvoke
    public Object retryOnFailure(InvocationContext invocationContext) throws Exception
    {
       int attempts = 0;
-      System.out.println("Retry " + attempts);
       do
       {
          try
          {
+            invocationCount ++;
             return invocationContext.proceed();
          }
          catch (Exception e)

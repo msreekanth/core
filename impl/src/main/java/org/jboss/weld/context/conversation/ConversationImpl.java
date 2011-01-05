@@ -33,8 +33,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 import javax.enterprise.context.ContextNotActiveException;
+import javax.enterprise.inject.Instance;
+import javax.inject.Inject;
 
-import org.jboss.weld.Container;
 import org.jboss.weld.context.ConversationContext;
 import org.jboss.weld.context.ManagedConversation;
 import org.jboss.weld.exceptions.IllegalStateException;
@@ -58,9 +59,13 @@ public class ConversationImpl implements ManagedConversation, Serializable
 
    private ReentrantLock concurrencyLock;
    private long lastUsed;
+   
+   private final Instance<ConversationContext> conversationContexts;
 
-   public ConversationImpl()
+   @Inject
+   public ConversationImpl(Instance<ConversationContext> conversationContexts)
    {
+      this.conversationContexts = conversationContexts;
       this._transient = true;
       ConversationContext conversationContext = getConversationContext();
       if (conversationContext != null)
@@ -77,7 +82,7 @@ public class ConversationImpl implements ManagedConversation, Serializable
    
    private ConversationContext getConversationContext()
    {
-      for (ConversationContext conversationContext : Container.instance().deploymentManager().instance().select(ConversationContext.class))
+      for (ConversationContext conversationContext : conversationContexts)
       {
          if (conversationContext.isActive())
          {
@@ -94,9 +99,13 @@ public class ConversationImpl implements ManagedConversation, Serializable
       {
          throw new IllegalStateException(BEGIN_CALLED_ON_LONG_RUNNING_CONVERSATION);
       }
-      log.debug(PROMOTED_TRANSIENT, id);
       _transient = false;
-      this.id = getConversationContext().generateConversationId();
+      if (this.id == null)
+      {
+         // This a conversation that was made transient previously in this request
+         this.id = getConversationContext().generateConversationId();
+      }
+      log.debug(PROMOTED_TRANSIENT, id);
    }
 
    public void begin(String id)
@@ -110,9 +119,9 @@ public class ConversationImpl implements ManagedConversation, Serializable
       {
          throw new IllegalStateException(CONVERSATION_ID_ALREADY_IN_USE, id);
       }
-      log.debug(PROMOTED_TRANSIENT, id);
       _transient = false;
       this.id = id;
+      log.debug(PROMOTED_TRANSIENT, id);
    }
 
 
@@ -125,13 +134,19 @@ public class ConversationImpl implements ManagedConversation, Serializable
       }
       log.debug(DEMOTED_LRC, id);
       _transient = true;
-      id = null;
    }
 
    public String getId()
    {
       verifyConversationContextActive();
-      return id;
+      if (!_transient)
+      {
+         return id;
+      }
+      else
+      {
+         return null;
+      }
    }
 
    public long getTimeout()
@@ -149,7 +164,14 @@ public class ConversationImpl implements ManagedConversation, Serializable
    @Override
    public String toString()
    {
-      return "Conversation with id: " + id;
+      if (_transient)
+      {
+         return "Transient conversation";
+      }
+      else
+      {
+         return "Conversation with id: " + id;
+      }
    }
 
    public boolean isTransient()
@@ -216,7 +238,7 @@ public class ConversationImpl implements ManagedConversation, Serializable
    private void verifyConversationContextActive()
    {
       ConversationContext ctx = getConversationContext();
-      if (ctx == null || !ctx.isActive())
+      if (ctx == null)
       {
          throw new ContextNotActiveException("Conversation Context not active when method called on conversation " + this);
       }

@@ -16,17 +16,20 @@
  */
 package org.jboss.weld.metadata.cache;
 
+import static org.jboss.weld.util.reflection.Reflections.cast;
+
 import java.lang.annotation.Annotation;
 import java.util.concurrent.ConcurrentMap;
 
-import com.google.common.base.Function;
-import com.google.common.collect.ComputationException;
-import com.google.common.collect.MapMaker;
 import org.jboss.weld.bootstrap.api.Service;
 import org.jboss.weld.exceptions.DefinitionException;
 import org.jboss.weld.exceptions.DeploymentException;
 import org.jboss.weld.exceptions.WeldException;
 import org.jboss.weld.resources.ClassTransformer;
+
+import com.google.common.base.Function;
+import com.google.common.collect.ComputationException;
+import com.google.common.collect.MapMaker;
 
 /**
  * Metadata singleton for holding EJB metadata, scope models etc.
@@ -123,16 +126,26 @@ public class MetaAnnotationStore implements Service
    // the interceptor bindings
    private ConcurrentMap<Class<Annotation>, InterceptorBindingModel<Annotation>> interceptorBindings;
 
-   private final ClassTransformer classTransformer;
-
    public MetaAnnotationStore(ClassTransformer classTransformer)
    {
       MapMaker mapMaker = new MapMaker();
-      this.classTransformer = classTransformer;
       this.stereotypes = mapMaker.makeComputingMap(new StereotypeFunction(classTransformer));
       this.scopes = mapMaker.makeComputingMap(new ScopeFunction(classTransformer));
       this.qualifiers = mapMaker.makeComputingMap(new QualifierFunction(classTransformer));
       this.interceptorBindings = mapMaker.makeComputingMap(new InterceptorBindingFunction(classTransformer));
+   }
+
+   /**
+    * removes all data for an annotation class. This should be called after an
+    * annotation has been modified through the SPI
+    * 
+    */
+   public void clearAnnotationData(Class<? extends Annotation> annotationClass)
+   {
+      stereotypes.remove(annotationClass);
+      scopes.remove(annotationClass);
+      qualifiers.remove(annotationClass);
+      interceptorBindings.remove(annotationClass);
    }
 
    /**
@@ -146,7 +159,7 @@ public class MetaAnnotationStore implements Service
     */
    public <T extends Annotation> StereotypeModel<T> getStereotype(final Class<T> stereotype)
    {
-      return (StereotypeModel<T>) stereotypes.get(stereotype);
+      return cast(stereotypes.get(stereotype));
    }
 
    /**
@@ -160,7 +173,7 @@ public class MetaAnnotationStore implements Service
     */
    public <T extends Annotation> ScopeModel<T> getScopeModel(final Class<T> scope)
    {
-      return (ScopeModel<T>) scopes.get(scope);
+      return cast(scopes.get(scope));
    }
 
    /**
@@ -172,10 +185,9 @@ public class MetaAnnotationStore implements Service
     * @param bindingType The binding type
     * @return The binding type model
     */
-   @SuppressWarnings("unchecked")
    public <T extends Annotation> QualifierModel<T> getBindingTypeModel(final Class<T> bindingType)
    {
-      return (QualifierModel<T>) qualifiers.get(bindingType);
+      return cast(qualifiers.get(bindingType));
    }
 
    /**
@@ -209,7 +221,7 @@ public class MetaAnnotationStore implements Service
       // TODO: generalize this and move to a higher level (MBG)
       try
       {
-         return (InterceptorBindingModel<T>) interceptorBindings.get(interceptorBinding);
+         return cast(interceptorBindings.get(interceptorBinding));
       }
       catch (ComputationException e)
       {

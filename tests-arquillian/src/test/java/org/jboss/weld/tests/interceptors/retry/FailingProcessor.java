@@ -17,18 +17,33 @@
 
 package org.jboss.weld.tests.interceptors.retry;
 
+import javax.ejb.Stateless;
+import javax.interceptor.AroundInvoke;
+import javax.interceptor.Interceptors;
+import javax.interceptor.InvocationContext;
+
 /**
  * @author Marius Bogoevici
  */
-public class FailingProcessor
+@Stateless
+public class FailingProcessor implements Processor
 {
    int attempts = 0;
 
-   @Retriable @Transactional
+   static int intercepts = 0;
+
+   @Retriable @Secured @Interceptors(TransactionalInterceptor.class)
    public int tryToProcess()
    {
       if (++attempts < 3)
          throw new RuntimeException("Try harder");
       return attempts;
+   }
+
+   @AroundInvoke
+   public Object aroundInvoke(InvocationContext invocationContext) throws Exception
+   {
+      intercepts ++;
+      return invocationContext.proceed();
    }
 }

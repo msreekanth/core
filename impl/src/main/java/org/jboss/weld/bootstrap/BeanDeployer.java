@@ -31,6 +31,7 @@ import javax.enterprise.inject.spi.AnnotatedType;
 import javax.interceptor.Interceptor;
 
 import org.jboss.weld.Container;
+import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.bootstrap.events.ProcessAnnotatedTypeImpl;
 import org.jboss.weld.ejb.EjbDescriptors;
 import org.jboss.weld.ejb.InternalEjbDescriptor;
@@ -41,6 +42,7 @@ import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.resources.ClassTransformer;
 import org.jboss.weld.resources.spi.ResourceLoader;
 import org.jboss.weld.resources.spi.ResourceLoadingException;
+import org.jboss.weld.util.reflection.Reflections;
 import org.slf4j.cal10n.LocLogger;
 import org.slf4j.ext.XLogger;
 
@@ -65,9 +67,9 @@ public class BeanDeployer extends AbstractBeanDeployer<BeanDeployerEnvironment>
     * @param manager
     * @param ejbDescriptors
     */
-   public BeanDeployer(BeanManagerImpl manager, EjbDescriptors ejbDescriptors)
+   public BeanDeployer(BeanManagerImpl manager, EjbDescriptors ejbDescriptors, ServiceRegistry services)
    {
-      super(manager, new BeanDeployerEnvironment(ejbDescriptors, manager));
+      super(manager, services, new BeanDeployerEnvironment(ejbDescriptors, manager));
       this.classes = new HashSet<WeldClass<?>>();
       this.resourceLoader = manager.getServices().get(ResourceLoader.class);
       this.classTransformer = Container.instance().services().get(ClassTransformer.class);
@@ -110,7 +112,7 @@ public class BeanDeployer extends AbstractBeanDeployer<BeanDeployerEnvironment>
                }
                else
                {
-                  classes.add(classTransformer.loadClass(event.getAnnotatedType()));
+                  classes.add(classTransformer.loadClass(ExternalAnnotatedType.of(event.getAnnotatedType())));
                }
             }
          }
@@ -131,26 +133,6 @@ public class BeanDeployer extends AbstractBeanDeployer<BeanDeployerEnvironment>
          addClass(className);
       }
       return this;
-   }
-
-   public void fireProcessAnnotatedTypeForTypesAddedThroughTheSPI()
-   {
-      Iterator<WeldClass<?>> it = classes.iterator();
-      Set<WeldClass<?>> transformed = new HashSet<WeldClass<?>>();
-      while (it.hasNext())
-      {
-         WeldClass<?> c = it.next();
-         if (!c.isDiscovered())
-         {
-            it.remove();
-            ProcessAnnotatedTypeImpl<?> event = ProcessAnnotatedTypeImpl.fire(getManager(), c);
-            if (!event.isVeto())
-            {
-               transformed.add(classTransformer.loadClass(ExternalAnnotatedType.of(event.getAnnotatedType())));
-            }
-         }
-      }
-      classes.addAll(transformed);
    }
 
    public BeanDeployer createBeans()
@@ -186,7 +168,7 @@ public class BeanDeployer extends AbstractBeanDeployer<BeanDeployerEnvironment>
             {
                for (WeldClass<?> c : otherWeldClasses.get(ejbDescriptor.getBeanClass()))
                {
-                  createSessionBean(ejbDescriptor, (WeldClass) c);
+                  createSessionBean(ejbDescriptor, Reflections.<WeldClass>cast(c));
                }
             }
             else

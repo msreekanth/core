@@ -141,7 +141,6 @@ public class MethodInjectionPoint<T, X> extends ForwardingWeldMethod<T, X> imple
       return null;
    }
 
-   @SuppressWarnings("unchecked")
    public T invokeWithSpecialValue(Object declaringInstance, Class<? extends Annotation> annotatedParameter, Object parameter, BeanManagerImpl manager, CreationalContext<?> creationalContext, Class<? extends RuntimeException> exceptionTypeToThrow)
    {
       try
@@ -192,7 +191,6 @@ public class MethodInjectionPoint<T, X> extends ForwardingWeldMethod<T, X> imple
       return null;
    }
 
-   @SuppressWarnings("unchecked")
    public T invokeOnInstanceWithSpecialValue(Object declaringInstance, Class<? extends Annotation> annotatedParameter, Object parameter, BeanManagerImpl manager, CreationalContext<?> creationalContext, Class<? extends RuntimeException> exceptionTypeToThrow)
    {
       try
@@ -349,7 +347,7 @@ public class MethodInjectionPoint<T, X> extends ForwardingWeldMethod<T, X> imple
       {
          WeldMethod<T, ?> method = getWeldMethod();
          Bean<T> bean = getDeclaringBean();
-         if (method == null || bean == null)
+         if (method == null || (bean == null && getDeclaringBeanId() != null))
          {
             throw new IllegalStateException(ReflectionMessage.UNABLE_TO_GET_METHOD_ON_DESERIALIZATION, getDeclaringBeanId(), getDeclaringWeldClass(), signature);
          }

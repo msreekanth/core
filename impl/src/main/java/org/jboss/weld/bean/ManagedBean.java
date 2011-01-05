@@ -28,6 +28,7 @@ import static org.jboss.weld.logging.messages.BeanMessage.PASSIVATING_BEAN_NEEDS
 import static org.jboss.weld.logging.messages.BeanMessage.PUBLIC_FIELD_ON_NORMAL_SCOPED_BEAN_NOT_ALLOWED;
 import static org.jboss.weld.logging.messages.BeanMessage.SIMPLE_BEAN_AS_NON_STATIC_INNER_CLASS_NOT_ALLOWED;
 import static org.jboss.weld.logging.messages.BeanMessage.SPECIALIZING_BEAN_MUST_EXTEND_A_BEAN;
+import static org.jboss.weld.util.reflection.Reflections.cast;
 
 import java.util.Set;
 
@@ -40,6 +41,7 @@ import javax.enterprise.inject.spi.InjectionPoint;
 import javax.enterprise.inject.spi.InjectionTarget;
 import javax.enterprise.inject.spi.PassivationCapable;
 
+import javassist.util.proxy.ProxyObject;
 import org.jboss.interceptor.proxy.DefaultInvocationContextFactory;
 import org.jboss.interceptor.proxy.InterceptorProxyCreatorImpl;
 import org.jboss.interceptor.spi.metadata.InterceptorMetadata;
@@ -47,14 +49,15 @@ import org.jboss.interceptor.util.InterceptionUtils;
 import org.jboss.weld.Container;
 import org.jboss.weld.bean.interceptor.WeldInterceptorClassMetadata;
 import org.jboss.weld.bean.interceptor.WeldInterceptorInstantiator;
-import org.jboss.weld.bean.proxy.ProxyFactory;
-import org.jboss.weld.bean.proxy.TargetBeanInstance;
+import org.jboss.weld.bean.proxy.CombinedInterceptorAndDecoratorStackMethodHandler;
 import org.jboss.weld.bootstrap.BeanDeployerEnvironment;
+import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.exceptions.DefinitionException;
 import org.jboss.weld.exceptions.DeploymentException;
 import org.jboss.weld.exceptions.IllegalStateException;
 import org.jboss.weld.injection.CurrentInjectionPoint;
 import org.jboss.weld.injection.InjectionContextImpl;
+import org.jboss.weld.injection.ProxyClassConstructorInjectionPointWrapper;
 import org.jboss.weld.injection.WeldInjectionPoint;
 import org.jboss.weld.introspector.WeldClass;
 import org.jboss.weld.introspector.WeldField;
@@ -63,6 +66,7 @@ import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.metadata.cache.MetaAnnotationStore;
 import org.jboss.weld.util.AnnotatedTypes;
 import org.jboss.weld.util.Beans;
+import org.jboss.weld.util.Proxies;
 import org.jboss.weld.util.reflection.Formats;
 import org.jboss.weld.util.reflection.Reflections;
 import org.slf4j.cal10n.LocLogger;
@@ -216,7 +220,7 @@ public class ManagedBean<T> extends AbstractClassBean<T>
 
       public Set<InjectionPoint> getInjectionPoints()
       {
-         return (Set) bean.getWeldInjectionPoints();
+         return cast(bean.getWeldInjectionPoints());
       }
 
       public T produce(final CreationalContext<T> ctx)
@@ -272,6 +276,7 @@ public class ManagedBean<T> extends AbstractClassBean<T>
 
    private boolean passivationCapableBean;
    private boolean passivationCapableDependency;
+   private final boolean proxiable;
 
    /**
     * Creates a simple, annotation defined Web Bean
@@ -281,15 +286,15 @@ public class ManagedBean<T> extends AbstractClassBean<T>
     * @param beanManager the current manager
     * @return A Web Bean
     */
-   public static <T> ManagedBean<T> of(WeldClass<T> clazz, BeanManagerImpl beanManager)
+   public static <T> ManagedBean<T> of(WeldClass<T> clazz, BeanManagerImpl beanManager, ServiceRegistry services)
    {
       if (clazz.isDiscovered())
       {
-         return new ManagedBean<T>(clazz, createSimpleId(ManagedBean.class.getSimpleName(), clazz), beanManager);
+         return new ManagedBean<T>(clazz, createSimpleId(ManagedBean.class.getSimpleName(), clazz), beanManager, services);
       }
       else
       {
-         return new ManagedBean<T>(clazz, createId(ManagedBean.class.getSimpleName(), clazz), beanManager);
+         return new ManagedBean<T>(clazz, createId(ManagedBean.class.getSimpleName(), clazz), beanManager, services);
       }
    }
 
@@ -313,13 +318,14 @@ public class ManagedBean<T> extends AbstractClassBean<T>
     * @param type The type of the bean
     * @param beanManager The Bean manager
     */
-   protected ManagedBean(WeldClass<T> type, String idSuffix, BeanManagerImpl beanManager)
+   protected ManagedBean(WeldClass<T> type, String idSuffix, BeanManagerImpl beanManager, ServiceRegistry services)
    {
-      super(type, idSuffix, beanManager);
+      super(type, idSuffix, beanManager, services);
       initType();
       initTypes();
       initQualifiers();
       initConstructor();
+      this.proxiable = Proxies.isTypesProxyable(type.getTypeClosure());
    }
 
    /**
@@ -374,7 +380,16 @@ public class ManagedBean<T> extends AbstractClassBean<T>
 
    protected T createInstance(CreationalContext<T> ctx)
    {
-      return getConstructor().newInstance(beanManager, ctx);
+      if (!isSubclassed())
+      {
+          return getConstructor().newInstance(beanManager, ctx);
+      }
+      else
+      {
+         ProxyClassConstructorInjectionPointWrapper<T> constructorInjectionPointWrapper = new ProxyClassConstructorInjectionPointWrapper<T>(this, constructorForEnhancedSubclass, getConstructor());
+         T instance = constructorInjectionPointWrapper.newInstance(beanManager, ctx);
+         return instance;
+      }
    }
 
    @Override
@@ -558,11 +573,9 @@ public class ManagedBean<T> extends AbstractClassBean<T>
       {
          WeldInterceptorInstantiator<T> interceptorInstantiator = new WeldInterceptorInstantiator<T>(beanManager, creationalContext);
          InterceptorProxyCreatorImpl interceptorProxyCreator = new InterceptorProxyCreatorImpl(interceptorInstantiator, new DefaultInvocationContextFactory(), beanManager.getInterceptorModelRegistry().get(getType()));
-         MethodHandler methodHandler = interceptorProxyCreator.createMethodHandler(instance, WeldInterceptorClassMetadata.of(getWeldAnnotated()));
-         TargetBeanInstance targetInstance = new TargetBeanInstance(this, instance);
-         targetInstance.setInterceptorsHandler(methodHandler);
-         instance = new ProxyFactory<T>(getType(), getTypes(), this).create(targetInstance);
-
+         MethodHandler methodHandler = interceptorProxyCreator.createSubclassingMethodHandler(null, WeldInterceptorClassMetadata.of(getWeldAnnotated()));
+         CombinedInterceptorAndDecoratorStackMethodHandler wrapperMethodHandler = (CombinedInterceptorAndDecoratorStackMethodHandler) ((ProxyObject) instance).getHandler();
+         wrapperMethodHandler.setInterceptorMethodHandler(methodHandler);
       }
       catch (Exception e)
       {
@@ -575,6 +588,12 @@ public class ManagedBean<T> extends AbstractClassBean<T>
    public String toString()
    {
       return "Managed Bean [" + getBeanClass().toString() + "] with qualifiers [" + Formats.formatAnnotations(getQualifiers()) + "]";
+   }
+
+   @Override
+   public boolean isProxyable()
+   {
+      return proxiable;
    }
 
 }

@@ -22,7 +22,7 @@ import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.shrinkwrap.api.BeanArchive;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.weld.tests.category.Broken;
+import org.jboss.weld.tests.category.Integration;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -38,16 +38,21 @@ public class RetryInterceptorTest
    public static Archive<?> deploy()
    {
       return ShrinkWrap.create(BeanArchive.class)
-         .intercept(RetryInterceptor.class, TransactionalInterceptor.class)
+         .intercept(RetryInterceptor.class, SecuredInterceptor.class)
          .addPackage(RetryInterceptorTest.class.getPackage());
    }
 
-   @Test
-   public void testRetry(FailingProcessor processor)
+   @Test  @Category(Integration.class)
+   public void testRetry(Processor processor)
    {
+      FailingProcessor.intercepts = 0;
+      RetryInterceptor.invocationCount = 0;
       System.out.println(processor);
       Assert.assertEquals(3, processor.tryToProcess());
-      Assert.assertEquals(3, TransactionalInterceptor.invocationCount);
+      Assert.assertEquals(1, TransactionalInterceptor.invocationCount);
+      Assert.assertEquals(3, RetryInterceptor.invocationCount);
+      Assert.assertEquals(3, SecuredInterceptor.invocationCount);
+      Assert.assertEquals(3, FailingProcessor.intercepts);
    }
 
 }

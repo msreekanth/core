@@ -16,6 +16,8 @@
  */
 package org.jboss.weld.bean;
 
+import static org.jboss.weld.util.reflection.Reflections.cast;
+
 import java.util.Set;
 
 import javax.enterprise.context.Dependent;
@@ -42,11 +44,14 @@ public abstract class RIBean<T> implements Bean<T>, PassivationCapable
    private final BeanManagerImpl beanManager;
    
    private final String id;
+   
+   private final int hashCode;
 
    protected RIBean(String idSuffix, BeanManagerImpl beanManager)
    {
       this.beanManager = beanManager;
       this.id = new StringBuilder().append(BEAN_ID_PREFIX).append(BEAN_ID_SEPARATOR).append(beanManager.getId()).append(BEAN_ID_SEPARATOR).append(idSuffix).toString();
+      this.hashCode = this.id.hashCode();
    }
 
    protected BeanManagerImpl getBeanManager()
@@ -62,6 +67,12 @@ public abstract class RIBean<T> implements Bean<T>, PassivationCapable
    }
    
    public abstract void initialize(BeanDeployerEnvironment environment);
+
+   /**
+    * This method is called after the container is started allowing the bean to 
+    * release any resources that are only required at boot time
+    */
+   public abstract void cleanupAfterBoot();
 
    /**
     * In particular cases, the deployer must perform some initialization operations
@@ -86,10 +97,7 @@ public abstract class RIBean<T> implements Bean<T>, PassivationCapable
    
    public abstract boolean isPassivationCapableDependency();
 
-   public boolean isProxyRequired()
-   {
-      return false;
-   }
+   public abstract boolean isProxyRequired();
    
    public abstract boolean isPrimitive();
 
@@ -97,7 +105,7 @@ public abstract class RIBean<T> implements Bean<T>, PassivationCapable
    
    public Set<InjectionPoint> getInjectionPoints()
    {
-      return (Set) getWeldInjectionPoints();
+      return cast(getWeldInjectionPoints());
    }
 
    public abstract RIBean<?> getSpecializedBean();
@@ -119,7 +127,7 @@ public abstract class RIBean<T> implements Bean<T>, PassivationCapable
    @Override
    public int hashCode()
    {
-      return getId().hashCode();
+      return hashCode;
    }
    
    public String getId()

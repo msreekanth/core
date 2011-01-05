@@ -16,10 +16,9 @@
  */
 package org.jboss.weld.bean;
 
-import static org.jboss.weld.logging.Category.BEAN;
-import static org.jboss.weld.logging.LoggerFactory.loggerFactory;
 import static org.jboss.weld.logging.messages.BeanMessage.INJECTED_FIELD_CANNOT_BE_PRODUCER;
 import static org.jboss.weld.logging.messages.BeanMessage.PRODUCER_FIELD_ON_SESSION_BEAN_MUST_BE_STATIC;
+import static org.jboss.weld.util.reflection.Reflections.cast;
 
 import java.lang.reflect.Field;
 import java.util.Set;
@@ -29,15 +28,16 @@ import javax.enterprise.inject.spi.InjectionPoint;
 import javax.enterprise.inject.spi.Producer;
 import javax.inject.Inject;
 
-import org.jboss.interceptor.util.InterceptionUtils;
 import org.jboss.interceptor.util.proxy.TargetInstanceProxy;
 import org.jboss.weld.bootstrap.BeanDeployerEnvironment;
+import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.exceptions.DefinitionException;
 import org.jboss.weld.introspector.WeldField;
 import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.util.AnnotatedTypes;
+import org.jboss.weld.util.Proxies;
 import org.jboss.weld.util.reflection.Formats;
-import org.slf4j.cal10n.LocLogger;
+import org.jboss.weld.util.reflection.Reflections;
 
 /**
  * Represents a producer field
@@ -48,10 +48,10 @@ import org.slf4j.cal10n.LocLogger;
  */
 public class ProducerField<X, T> extends AbstractProducerBean<X, T, Field>
 {
-   private static final LocLogger log = loggerFactory().getLogger(BEAN);
    
    // The underlying field
    private WeldField<T, ? super X> field;
+   private final boolean proxiable;
    
    /**
     * Creates a producer field
@@ -61,9 +61,9 @@ public class ProducerField<X, T> extends AbstractProducerBean<X, T, Field>
     * @param beanManager the current manager
     * @return A producer field
     */
-   public static <X, T> ProducerField<X, T> of(WeldField<T, ? super X> field, AbstractClassBean<X> declaringBean, BeanManagerImpl beanManager)
+   public static <X, T> ProducerField<X, T> of(WeldField<T, ? super X> field, AbstractClassBean<X> declaringBean, BeanManagerImpl beanManager, ServiceRegistry services)
    {
-      return new ProducerField<X, T>(field, declaringBean, beanManager);
+      return new ProducerField<X, T>(field, declaringBean, beanManager, services);
    }
 
 
@@ -74,14 +74,15 @@ public class ProducerField<X, T> extends AbstractProducerBean<X, T, Field>
     * @param declaringBean The declaring bean
     * @param manager The Bean manager
     */
-   protected ProducerField(WeldField<T, ? super X> field, AbstractClassBean<X> declaringBean, BeanManagerImpl manager)
+   protected ProducerField(WeldField<T, ? super X> field, AbstractClassBean<X> declaringBean, BeanManagerImpl manager, ServiceRegistry services)
    {
-      super(createId(field, declaringBean), declaringBean, manager);
+      super(createId(field, declaringBean), declaringBean, manager, services);
       this.field = field;
       initType();
       initTypes();
       initQualifiers();
       initStereotypes();
+      this.proxiable = Proxies.isTypesProxyable(field.getTypeClosure());
    }
    
    protected static String createId(WeldField<?, ?> field, AbstractClassBean<?> declaringBean)
@@ -124,7 +125,7 @@ public class ProducerField<X, T> extends AbstractProducerBean<X, T, Field>
 
             public Set<InjectionPoint> getInjectionPoints()
             {
-               return (Set) getWeldInjectionPoints();
+               return cast(getWeldInjectionPoints());
             }
 
             public T produce(CreationalContext<T> creationalContext)
@@ -133,7 +134,7 @@ public class ProducerField<X, T> extends AbstractProducerBean<X, T, Field>
                Object receiver = getReceiver(creationalContext);
                if (receiver instanceof TargetInstanceProxy)
                {
-                  receiver = ((TargetInstanceProxy)receiver).getTargetInstance();
+                  receiver = Reflections.<TargetInstanceProxy<T>>cast(receiver).getTargetInstance();
                }
                return field.get(receiver);
             }
@@ -210,6 +211,12 @@ public class ProducerField<X, T> extends AbstractProducerBean<X, T, Field>
    public String toString()
    {
       return "Producer Field [" + Formats.formatType(getWeldAnnotated().getBaseType()) + "] with qualifiers [" + Formats.formatAnnotations(getQualifiers()) + "] declared as [" + getWeldAnnotated() + "]";
+   }
+
+   @Override
+   public boolean isProxyable()
+   {
+      return proxiable;
    }
 
 }

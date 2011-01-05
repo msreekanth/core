@@ -16,6 +16,8 @@
  */
 package org.jboss.weld.bootstrap;
 
+import static org.jboss.weld.util.reflection.Reflections.cast;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -112,7 +114,7 @@ public class BeanDeployerEnvironment
       {
          ProducerMethod<?, ?> bean = producerMethodBeanMap.get(key);
          bean.initialize(this);
-         return (ProducerMethod<X, T>) bean;
+         return cast(bean);
       }
    }
 
@@ -132,7 +134,7 @@ public class BeanDeployerEnvironment
 
    public void addProducerMethod(ProducerMethod<?, ?> bean)
    {
-      producerMethodBeanMap.put(new WeldMethodKey(bean.getWeldAnnotated()), bean);
+      producerMethodBeanMap.put(WeldMethodKey.of(bean.getWeldAnnotated()), bean);
       addAbstractBean(bean);
    }
 
@@ -162,7 +164,6 @@ public class BeanDeployerEnvironment
 
    public void addManagedBean(ManagedBean<?> bean)
    {
-      newManagedBeanClasses.add(bean.getWeldAnnotated());
       addAbstractClassBean(bean);
    }
 
@@ -292,18 +293,25 @@ public class BeanDeployerEnvironment
     */
    public <X> Set<DisposalMethod<X, ?>> resolveDisposalBeans(Set<Type> types, Set<Annotation> qualifiers, AbstractClassBean<X> declaringBean)
    {
-      Set<DisposalMethod<X, ?>> beans = (Set) disposalMethodResolver.resolve(new ResolvableBuilder().addTypes(types).addQualifiers(qualifiers).setDeclaringBean(declaringBean).create());
+      // We can always cache as this is only ever called by Weld where we avoid non-static inner classes for annotation literals
+      Set<DisposalMethod<X, ?>> beans = cast(disposalMethodResolver.resolve(new ResolvableBuilder().addTypes(types).addQualifiers(qualifiers).setDeclaringBean(declaringBean).create(), true));
       resolvedDisposalBeans.addAll(beans);
       return Collections.unmodifiableSet(beans);
    }
 
    private static class WeldMethodKey<T, X>
    {
-      final WeldMethod meth;
+      
+      static <T, X> WeldMethodKey<T, X> of(WeldMethod<T, X> method)
+      {
+         return new WeldMethodKey<T, X>(method);
+      }
+      
+      final WeldMethod<T, X> method;
 
       WeldMethodKey(WeldMethod<T, X> meth)
       {
-         this.meth = meth;
+         this.method = meth;
       }
 
       @Override
@@ -312,7 +320,7 @@ public class BeanDeployerEnvironment
          if (other instanceof WeldMethodKey<?, ?>)
          {
             WeldMethodKey<?, ?> o = (WeldMethodKey<?, ?>) other;
-            return AnnotatedTypes.compareAnnotatedCallable(meth, o.meth);
+            return AnnotatedTypes.compareAnnotatedCallable(method, o.method);
          }
          return false;
       }
@@ -320,7 +328,7 @@ public class BeanDeployerEnvironment
       @Override
       public int hashCode()
       {
-         return meth.getJavaMember().hashCode();
+         return method.getJavaMember().hashCode();
       }
    }
 

@@ -27,7 +27,7 @@ import static org.jboss.weld.logging.messages.BeanMessage.NULL_NOT_ALLOWED_FROM_
 import static org.jboss.weld.logging.messages.BeanMessage.ONLY_ONE_SCOPE_ALLOWED;
 import static org.jboss.weld.logging.messages.BeanMessage.PRODUCER_CAST_ERROR;
 import static org.jboss.weld.logging.messages.BeanMessage.PRODUCER_METHOD_WITH_TYPE_VARIABLE_RETURN_TYPE_MUST_BE_DEPENDENT;
-import static org.jboss.weld.logging.messages.BeanMessage.PRODUCER_METHOD_WITH_WILDCARD_RETURN_TYPE_MUST_BE_DEPENDENT;
+import static org.jboss.weld.logging.messages.BeanMessage.PRODUCER_METHOD_CANNOT_HAVE_A_WILDCARD_RETURN_TYPE;
 import static org.jboss.weld.logging.messages.BeanMessage.RETURN_TYPE_MUST_BE_CONCRETE;
 import static org.jboss.weld.logging.messages.BeanMessage.USING_DEFAULT_SCOPE;
 import static org.jboss.weld.logging.messages.BeanMessage.USING_SCOPE;
@@ -56,6 +56,7 @@ import javax.inject.Scope;
 
 import org.jboss.weld.Container;
 import org.jboss.weld.bootstrap.BeanDeployerEnvironment;
+import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.exceptions.DefinitionException;
 import org.jboss.weld.exceptions.IllegalProductException;
 import org.jboss.weld.exceptions.WeldException;
@@ -112,9 +113,9 @@ public abstract class AbstractProducerBean<X, T, S extends Member> extends Abstr
     * @param declaringBean The declaring bean
     * @param beanManager The Bean manager
     */
-   public AbstractProducerBean(String idSuffix, AbstractClassBean<X> declaringBean, BeanManagerImpl beanManager)
+   public AbstractProducerBean(String idSuffix, AbstractClassBean<X> declaringBean, BeanManagerImpl beanManager, ServiceRegistry services)
    {
-      super(idSuffix, declaringBean, beanManager);
+      super(idSuffix, declaringBean, beanManager, services);
       serializationCheckCache = new MapMaker().makeComputingMap(SERIALIZABLE_CHECK);
    }
 
@@ -183,7 +184,7 @@ public abstract class AbstractProducerBean<X, T, S extends Member> extends Abstr
             }
             else if (type instanceof WildcardType)
             {
-               throw new DefinitionException(PRODUCER_METHOD_WITH_WILDCARD_RETURN_TYPE_MUST_BE_DEPENDENT, getWeldAnnotated());
+               throw new DefinitionException(PRODUCER_METHOD_CANNOT_HAVE_A_WILDCARD_RETURN_TYPE, getWeldAnnotated());
             }
          }
       }

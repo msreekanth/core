@@ -43,13 +43,11 @@ public interface WeldAnnotated<T, S> extends Annotated
    /**
     *  The set of meta-annotations to map
     */
-   @SuppressWarnings("unchecked")
    public static final Set<Class<? extends Annotation>> MAPPED_METAANNOTATIONS = Arrays2.asSet(Qualifier.class, Stereotype.class, Scope.class, NormalScope.class, InterceptorBinding.class);
    
    /**
     * The set of declared meta-annotations to map
     */
-   @SuppressWarnings("unchecked")
    public static final Set<Class<? extends Annotation>> MAPPED_DECLARED_METAANNOTATIONS = Arrays2.asSet(Scope.class, NormalScope.class);
 
    /**
@@ -86,8 +84,6 @@ public interface WeldAnnotated<T, S> extends Annotated
 
    /**
     * Get the type hierarchy of any interfaces implemented by this class.
-    * 
-    * Interface hierarchies from super classes are not included.
     * 
     * The returned types should have any type parameters resolved to their
     * actual types.
@@ -128,13 +124,6 @@ public interface WeldAnnotated<T, S> extends Annotated
     * @return True if final, false otherwise
     */
    public boolean isFinal();
-
-   /**
-    * Indicates if this AnnotatedItem can be proxyed
-    * 
-    * @return True if proxyable, false otherwise
-    */
-   public boolean isProxyable();
 
    /**
     * Indicates if this annotated item is public

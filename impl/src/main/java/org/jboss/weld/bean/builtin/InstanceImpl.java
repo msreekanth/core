@@ -16,8 +16,8 @@
  */
 package org.jboss.weld.bean.builtin;
 
-import static org.jboss.weld.injection.SimpleInjectionPoint.EMPTY_INJECTION_POINT;
 import static org.jboss.weld.logging.messages.BeanMessage.PROXY_REQUIRED;
+import static org.jboss.weld.util.collections.Arrays2.asSet;
 import static org.jboss.weld.util.reflection.Reflections.EMPTY_ANNOTATIONS;
 
 import java.io.ObjectInputStream;
@@ -39,11 +39,13 @@ import javax.enterprise.util.TypeLiteral;
 import org.jboss.weld.Container;
 import org.jboss.weld.exceptions.InvalidObjectException;
 import org.jboss.weld.injection.CurrentInjectionPoint;
-import org.jboss.weld.injection.SimpleInjectionPoint;
+import org.jboss.weld.injection.EmptyInjectionPoint;
+import org.jboss.weld.injection.ForwardingInjectionPoint;
 import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.resolution.ResolvableBuilder;
 import org.jboss.weld.util.Beans;
 import org.jboss.weld.util.reflection.Formats;
+import org.jboss.weld.util.reflection.Reflections;
 
 /**
  * Helper implementation for Instance for getting instances
@@ -55,17 +57,48 @@ import org.jboss.weld.util.reflection.Formats;
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(value="SE_NO_SUITABLE_CONSTRUCTOR", justification="Uses SerializationProxy")
 public class InstanceImpl<T> extends AbstractFacade<T, Instance<T>> implements Instance<T>, Serializable
 {
+   
+   private static class InstanceInjectionPoint extends ForwardingInjectionPoint implements Serializable
+   {
+      
+      private static final long serialVersionUID = -4102173765226078459L;
+      
+      private final InjectionPoint injectionPoint;
+      private final Type type;
+      private final Set<Annotation> qualifiers;
+
+      public InstanceInjectionPoint(InjectionPoint injectionPoint, Type type, Annotation[] qualifiers)
+      {
+         this.injectionPoint = injectionPoint;
+         this.type = type;
+         this.qualifiers = asSet(qualifiers);
+      }
+
+      @Override
+      protected InjectionPoint delegate()
+      {
+         return injectionPoint;
+      }
+      
+      @Override
+      public Type getType()
+      {
+         return type;
+      }
+      
+      @Override
+      public Set<Annotation> getQualifiers()
+      {
+         return qualifiers;
+      }
+      
+   }
 
    private static final long serialVersionUID = -376721889693284887L;
 
    public static <I> Instance<I> of(InjectionPoint injectionPoint, CreationalContext<I> creationalContext, BeanManagerImpl beanManager)
    {
       return new InstanceImpl<I>(getFacadeType(injectionPoint), injectionPoint.getQualifiers().toArray(EMPTY_ANNOTATIONS), injectionPoint, creationalContext, beanManager);
-   }
-   
-   public static <I> Instance<I> of(Type type, Annotation[] qualifiers, CreationalContext<I> creationalContext, BeanManagerImpl beanManager)
-   {
-      return new InstanceImpl<I>(type, qualifiers, EMPTY_INJECTION_POINT, creationalContext, beanManager);
    }
    
    private InstanceImpl(Type type, Annotation[] qualifiers, InjectionPoint injectionPoint, CreationalContext<? super T> creationalContext, BeanManagerImpl beanManager)
@@ -77,17 +110,16 @@ public class InstanceImpl<T> extends AbstractFacade<T, Instance<T>> implements I
    {      
       Bean<?> bean = getBeanManager().getBean(new ResolvableBuilder(getType()).addQualifiers(getQualifiers()).setDeclaringBean(getInjectionPoint().getBean()).create());
       // Generate a correct injection point for the bean, we do this by taking the original injection point and adjusting the qualifiers and type
-      InjectionPoint ip = new SimpleInjectionPoint(getInjectionPoint().isTransient(), getInjectionPoint().isDelegate(), getType(), getQualifiers(), getInjectionPoint().getMember(), getInjectionPoint().getBean(), getInjectionPoint().getAnnotated());
+      InjectionPoint ip = new InstanceInjectionPoint(getInjectionPoint(), getType(), getQualifiers());
+      CurrentInjectionPoint currentInjectionPoint = Container.instance().services().get(CurrentInjectionPoint.class);
       try
       {   
-         Container.instance().services().get(CurrentInjectionPoint.class).push(ip);
-         @SuppressWarnings("unchecked")
-         T instance = (T) getBeanManager().getReference(bean, getType(), getCreationalContext());
-         return instance;
+         currentInjectionPoint.push(ip);
+         return Reflections.<T>cast(getBeanManager().getReference(bean, getType(), getCreationalContext()));
       }
       finally
       {
-         Container.instance().services().get(CurrentInjectionPoint.class).pop();
+         currentInjectionPoint.pop();
       }
    }
 
@@ -116,11 +148,7 @@ public class InstanceImpl<T> extends AbstractFacade<T, Instance<T>> implements I
          if (!InjectionPoint.class.isAssignableFrom(bean.getBeanClass()))
          {
             Object object = getBeanManager().getReference(bean, getType(), getBeanManager().createCreationalContext(bean));
-            
-            @SuppressWarnings("unchecked")
-            T instance = (T) object;
-            
-            instances.add(instance);
+            instances.add(Reflections.<T>cast(object));
          }
       }
       return instances.iterator();
