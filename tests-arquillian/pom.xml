@@ -442,7 +442,7 @@
          </activation>
          <properties>
             <test>org.jboss.weld.tests.IntegrationSuite</test>
-            <glassfish.version>3.1-b19</glassfish.version>
+            <glassfish.version>3.1-b35</glassfish.version>
          </properties>
          <dependencies>
             <dependency>
