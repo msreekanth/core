@@ -50,6 +50,7 @@ import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.test.Utils;
 import org.jboss.weld.util.collections.Arrays2;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -211,6 +212,7 @@ public class ActivitiesTest
    private BeanManagerImpl beanManager;
    
    @Test
+   @Ignore
    public void testBeanBelongingToParentActivityBelongsToChildActivity()
    {
       Assert.assertEquals(1, beanManager.getBeans(Cow.class).size());
@@ -221,6 +223,7 @@ public class ActivitiesTest
    }
 
    @Test
+   @Ignore
    public void testBeanBelongingToParentActivityCanBeInjectedIntoChildActivityBean()
    {
       Assert.assertEquals(1, beanManager.getBeans(Cow.class).size());
@@ -234,6 +237,7 @@ public class ActivitiesTest
    }
 
    @Test
+   @Ignore
    public void testObserverBelongingToParentActivityBelongsToChildActivity()
    {
       Assert.assertEquals(1, beanManager.resolveObserverMethods(new NightTime()).size());
@@ -244,6 +248,7 @@ public class ActivitiesTest
    }
 
    @Test
+   @Ignore
    public void testObserverBelongingToParentFiresForChildActivity()
    {
       Fox.setObserved(false);
