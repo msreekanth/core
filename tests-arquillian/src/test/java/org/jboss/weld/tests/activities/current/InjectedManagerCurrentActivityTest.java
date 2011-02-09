@@ -87,6 +87,7 @@ public class InjectedManagerCurrentActivityTest
    private BeanManagerImpl beanManager;
 
    @Test
+   @Ignore
    public void testInjectedManagerIsCurrentActivity()
    {
       Context dummyContext = new DummyContext();
