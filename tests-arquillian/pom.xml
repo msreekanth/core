@@ -556,17 +556,7 @@
                   <artifactId>maven-surefire-plugin</artifactId>
                   <configuration>
                      <test>${test}</test>
-                     <parallel>none</parallel>
-                <excludes>
-<exclude>org.jboss.weld.tests.activities.current.InstanceCurrentActivityTest.java</exclude>
-<exclude>org.jboss.weld.tests.activities.current.InjectedManagerCurrentActivityTest.java</exclude>
-<exclude>org.jboss.weld.tests.activities.ActivitiesTest.java</exclude>
-<exclude>org.jboss.weld.tests.beanDeployment.mixed.BootstrapTest.java</exclude>
-<exclude>org.jboss.weld.tests.beanDeployment.managed.single.BootstrapTest.java</exclude>
-<exclude>org.jboss.weld.tests.beanDeployment.producers.singleProducerMethod.BootstrapTest.java</exclude>
-<exclude>org.jboss.weld.tests.beanDeployment.session.multiple.BootstrapTest.java</exclude>
-<exclude>org.jboss.weld.tests.beanDeployment.managed.multiple.BootstrapTest.java</exclude>
-        	  </excludes>
+                     <parallel>none</parallel>              
                   </configuration>
                </plugin>
             </plugins>
