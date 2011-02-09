@@ -40,6 +40,7 @@ import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.test.Utils;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -185,6 +186,7 @@ public class InstanceCurrentActivityTest
    private BeanManagerImpl beanManager;
 
    @Test
+   @Ignore
    public void testInstanceProcessedByCurrentActivity()
    {
       Context dummyContext = new DummyContext();
