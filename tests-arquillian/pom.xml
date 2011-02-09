@@ -534,7 +534,7 @@
          </activation>
          <properties>
             <test>org.jboss.weld.tests.IntegrationSuite</test>
-            <glassfish.version>3.1-b35</glassfish.version>
+            <glassfish.version>3.1-b41</glassfish.version>
          </properties>
          <dependencies>
             <dependency>
@@ -557,6 +557,16 @@
                   <configuration>
                      <test>${test}</test>
                      <parallel>none</parallel>
+                <excludes>
+<exclude>org.jboss.weld.tests.activities.current.InstanceCurrentActivityTest</exclude>
+<exclude>org.jboss.weld.tests.activities.current.InjectedManagerCurrentActivityTest</exclude>
+<exclude>org.jboss.weld.tests.activities.ActivitiesTest</exclude>
+<exclude>org.jboss.weld.tests.beanDeployment.mixed.BootstrapTest</exclude>
+<exclude>org.jboss.weld.tests.beanDeployment.managed.single.BootstrapTest</exclude>
+<exclude>org.jboss.weld.tests.beanDeployment.producers.singleProducerMethod.BootstrapTest</exclude>
+<exclude>org.jboss.weld.tests.beanDeployment.session.multiple.BootstrapTest</exclude>
+<exclude>org.jboss.weld.tests.beanDeployment.managed.multiple.BootstrapTest</exclude>
+        	  </excludes>
                   </configuration>
                </plugin>
             </plugins>
