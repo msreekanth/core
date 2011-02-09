@@ -49,6 +49,7 @@ public class BootstrapTest
    private BeanManagerImpl beanManager;
    
    @Test
+   @Ignore
    public void testMultipleEnterpriseBean()
    {
       List<Bean<?>> beans = beanManager.getBeans();
