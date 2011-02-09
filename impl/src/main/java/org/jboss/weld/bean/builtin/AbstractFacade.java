@@ -22,7 +22,7 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.Arrays;
+import java.util.Set;
 
 import javax.enterprise.context.spi.CreationalContext;
 import javax.enterprise.inject.spi.InjectionPoint;
@@ -55,19 +55,15 @@ public abstract class AbstractFacade<T, X>
 
    private final BeanManagerImpl beanManager;
    private final InjectionPoint injectionPoint;
-   private final Type type;
-   private final Annotation[] qualifiers;
    // The CreationalContext used to create the facade which was injected.
    // This allows us to propagate the CreationalContext when get() is called
    private final CreationalContext<? super T> creationalContext;
    
-   protected AbstractFacade(Type type, Annotation[] qualifiers, InjectionPoint injectionPoint, CreationalContext<? super T> creationalContext, BeanManagerImpl beanManager)
+   protected AbstractFacade(InjectionPoint injectionPoint, CreationalContext<? super T> creationalContext, BeanManagerImpl beanManager)
    {
       this.beanManager = beanManager;
       this.injectionPoint = injectionPoint;
       this.creationalContext = creationalContext;
-      this.type = type;
-      this.qualifiers = qualifiers;
    }
 
    protected BeanManagerImpl getBeanManager()
@@ -75,14 +71,14 @@ public abstract class AbstractFacade<T, X>
       return beanManager.getCurrent();
    }
    
-   protected Annotation[] getQualifiers()
+   protected Set<Annotation> getQualifiers()
    {
-      return qualifiers;
+      return injectionPoint.getQualifiers();
    }
    
    protected Type getType()
    {
-      return type;
+      return getFacadeType(injectionPoint);
    }
    
    protected InjectionPoint getInjectionPoint()
@@ -101,7 +97,7 @@ public abstract class AbstractFacade<T, X>
       if (obj instanceof AbstractFacade<?, ?>)
       {
          AbstractFacade<?, ?> that = (AbstractFacade<?, ?>) obj;
-         return this.getType().equals(that.getType()) && Arrays.equals(this.getQualifiers(), that.getQualifiers());
+         return this.getType().equals(that.getType()) && this.getQualifiers().equals(that.getQualifiers());
       }
       else
       {
@@ -114,7 +110,7 @@ public abstract class AbstractFacade<T, X>
    {
       int hashCode = 17;
       hashCode += getType().hashCode() * 5;
-      hashCode += Arrays.hashCode(getQualifiers()) * 7;
+      hashCode += getQualifiers().hashCode() * 7;
       return hashCode;
    }
    
