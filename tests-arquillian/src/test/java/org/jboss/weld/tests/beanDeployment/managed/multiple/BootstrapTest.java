@@ -49,6 +49,7 @@ public class BootstrapTest
    private BeanManagerImpl beanManager;
    
    @Test
+   @Inject
    public void testMultipleSimpleBean()
    {
       List<Bean<?>> beans = beanManager.getBeans();
