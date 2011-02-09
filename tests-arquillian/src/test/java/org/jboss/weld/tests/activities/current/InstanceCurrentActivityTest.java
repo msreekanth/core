@@ -185,8 +185,7 @@ public class InstanceCurrentActivityTest
    @Inject
    private BeanManagerImpl beanManager;
 
-   @Test
-   @Ignore
+   @Test   
    public void testInstanceProcessedByCurrentActivity()
    {
       Context dummyContext = new DummyContext();
