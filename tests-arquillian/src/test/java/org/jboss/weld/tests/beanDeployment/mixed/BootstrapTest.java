@@ -33,6 +33,7 @@ import org.jboss.weld.bean.RIBean;
 import org.jboss.weld.bean.SessionBean;
 import org.jboss.weld.manager.BeanManagerImpl;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -50,6 +51,7 @@ public class BootstrapTest
    private BeanManagerImpl beanManager;
 
    @Test
+   @Ignore
    public void testMultipleEnterpriseAndSimpleBean()
    {
       List<Bean<?>> beans = beanManager.getBeans();
