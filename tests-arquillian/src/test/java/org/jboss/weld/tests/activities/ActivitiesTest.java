@@ -211,51 +211,51 @@ public class ActivitiesTest
    @Inject
    private BeanManagerImpl beanManager;
    
-   @Test
-   @Ignore
-   public void testBeanBelongingToParentActivityBelongsToChildActivity()
-   {
-      Assert.assertEquals(1, beanManager.getBeans(Cow.class).size());
-      Contextual<?> bean = beanManager.getBeans(Cow.class).iterator().next();
-      BeanManager childActivity = beanManager.createActivity();
-      Assert.assertEquals(1, childActivity.getBeans(Cow.class).size());
-      Assert.assertEquals(bean, childActivity.getBeans(Cow.class).iterator().next());
-   }
-
-   @Test
-   @Ignore
-   public void testBeanBelongingToParentActivityCanBeInjectedIntoChildActivityBean()
-   {
-      Assert.assertEquals(1, beanManager.getBeans(Cow.class).size());
-      BeanManagerImpl childActivity = beanManager.createActivity();
-      Bean<?> dummyBean = createDummyBean(childActivity, Cow.class);
-      childActivity.addBean(dummyBean);
-      Assert.assertNotNull(
-            childActivity.getInjectableReference(
-                  dummyBean.getInjectionPoints().iterator().next(), 
-                  childActivity.createCreationalContext(dummyBean)));
-   }
-
-   @Test
-   @Ignore
-   public void testObserverBelongingToParentActivityBelongsToChildActivity()
-   {
-      Assert.assertEquals(1, beanManager.resolveObserverMethods(new NightTime()).size());
-      ObserverMethod<?> observer = beanManager.resolveObserverMethods(new NightTime()).iterator().next();
-      BeanManager childActivity = beanManager.createActivity();
-      Assert.assertEquals(1, childActivity.resolveObserverMethods(new NightTime()).size());
-      Assert.assertEquals(observer, childActivity.resolveObserverMethods(new NightTime()).iterator().next());
-   }
-
-   @Test
-   @Ignore
-   public void testObserverBelongingToParentFiresForChildActivity()
-   {
-      Fox.setObserved(false);
-      BeanManager childActivity = beanManager.createActivity();
-      childActivity.fireEvent(new NightTime());
-      Assert.assertTrue(Fox.isObserved());
-   }
+//   @Test
+//   @Ignore
+//   public void testBeanBelongingToParentActivityBelongsToChildActivity()
+//   {
+//      Assert.assertEquals(1, beanManager.getBeans(Cow.class).size());
+//      Contextual<?> bean = beanManager.getBeans(Cow.class).iterator().next();
+//      BeanManager childActivity = beanManager.createActivity();
+//      Assert.assertEquals(1, childActivity.getBeans(Cow.class).size());
+//      Assert.assertEquals(bean, childActivity.getBeans(Cow.class).iterator().next());
+//   }
+//
+//   @Test
+//   @Ignore
+//   public void testBeanBelongingToParentActivityCanBeInjectedIntoChildActivityBean()
+//   {
+//      Assert.assertEquals(1, beanManager.getBeans(Cow.class).size());
+//      BeanManagerImpl childActivity = beanManager.createActivity();
+//      Bean<?> dummyBean = createDummyBean(childActivity, Cow.class);
+//      childActivity.addBean(dummyBean);
+//      Assert.assertNotNull(
+//            childActivity.getInjectableReference(
+//                  dummyBean.getInjectionPoints().iterator().next(), 
+//                  childActivity.createCreationalContext(dummyBean)));
+//   }
+//
+//   @Test
+//   @Ignore
+//   public void testObserverBelongingToParentActivityBelongsToChildActivity()
+//   {
+//      Assert.assertEquals(1, beanManager.resolveObserverMethods(new NightTime()).size());
+//      ObserverMethod<?> observer = beanManager.resolveObserverMethods(new NightTime()).iterator().next();
+//      BeanManager childActivity = beanManager.createActivity();
+//      Assert.assertEquals(1, childActivity.resolveObserverMethods(new NightTime()).size());
+//      Assert.assertEquals(observer, childActivity.resolveObserverMethods(new NightTime()).iterator().next());
+//   }
+//
+//   @Test
+//   @Ignore
+//   public void testObserverBelongingToParentFiresForChildActivity()
+//   {
+//      Fox.setObserved(false);
+//      BeanManager childActivity = beanManager.createActivity();
+//      childActivity.fireEvent(new NightTime());
+//      Assert.assertTrue(Fox.isObserved());
+//   }
 
    @Test
    public void testContextObjectBelongingToParentBelongsToChild()
