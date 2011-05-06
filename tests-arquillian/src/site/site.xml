@@ -1,0 +1,15 @@
+<project> 
+  <skin> 
+    <groupId>org.apache.maven.skins</groupId> 
+    <artifactId>maven-default-skin</artifactId> 
+    <version>1.0</version> 
+  </skin> 
+  <version position="right"/>
+  <poweredBy>
+    <logo name="Maven" href="http://maven.apache.org/"
+          img="http://maven.apache.org/images/logos/maven-feather.png"/>
+  </poweredBy>
+  <body>
+  	<menu ref="modules" />
+  </body>
+</project> 
