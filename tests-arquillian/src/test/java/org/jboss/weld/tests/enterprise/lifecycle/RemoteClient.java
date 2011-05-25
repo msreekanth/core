@@ -20,7 +20,7 @@ import org.jboss.weld.context.RequestContext;
 import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.test.Utils;
 
-@WebServlet("*")
+@WebServlet
 public class RemoteClient extends HttpServlet
 {
 
