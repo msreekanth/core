@@ -1,4 +1,3 @@
-
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <artifactId>weld-core-parent</artifactId>
@@ -515,7 +514,7 @@
             </activation>
             <properties>
                 <test>org.jboss.weld.tests.IntegrationSuite</test>
-                <glassfish.version>3.1</glassfish.version>
+                <glassfish.version>3.1.1-b10</glassfish.version>
             </properties>
             <dependencies>
                 <dependency>
@@ -553,7 +552,7 @@
             </activation>
             <properties>
                 <test>org.jboss.weld.tests.IntegrationSuite</test>
-                <glassfish.version>3.1</glassfish.version>
+                <glassfish.version>3.1.1-b10</glassfish.version>
             </properties>
             <dependencies>
                 <dependency>
@@ -593,7 +592,7 @@
             </activation>
             <properties>
                 <test>org.jboss.weld.tests.GlassfishIntegrationSuite</test>
-                <glassfish.version>3.1</glassfish.version>
+                <glassfish.version>3.1.1-b10</glassfish.version>
             </properties>
             <dependencies>
                 <dependency>
